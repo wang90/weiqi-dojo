@@ -1,0 +1,1757 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="围棋练习盘：人机对弈、死活题、打谱、入门教程，全部离线可用。">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#0b1117">
+<title>围棋练习 · 死活题 & 打谱</title>
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;height:100%}
+  body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    background:radial-gradient(circle at 50% 0%,#22303f 0%,#0b1117 70%);color:#dfe8f1;
+    display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden}
+  header{display:flex;align-items:center;gap:12px;padding:12px 18px;flex-wrap:wrap}
+  .logo{font-size:18px;font-weight:800;letter-spacing:1px;color:#f3e4c3;white-space:nowrap}
+  .tabs{display:flex;background:rgba(255,255,255,.07);border-radius:12px;padding:4px;gap:4px;margin-left:auto}
+  .tabs button{border:0;background:transparent;color:#9fb3c8;padding:8px 18px;border-radius:9px;
+    font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;transition:.18s}
+  .tabs button.on{background:#f0c060;color:#231a08;box-shadow:0 2px 12px rgba(240,192,96,.35)}
+  .tabs button.on.k{background:#7fd7ff}
+  .back{text-decoration:none;background:rgba(120,200,255,.14);border:1px solid rgba(120,200,255,.3);
+    color:#a8d8ff;padding:9px 15px;border-radius:11px;font-size:14px;font-weight:700;white-space:nowrap}
+  main{flex:1;display:flex;min-height:0;padding:0 18px 18px;gap:14px}
+  .pane{flex:1;display:none;gap:14px;min-height:0}
+  .pane.on{display:flex}
+  .board-wrap{position:relative;flex:1 1 auto;min-width:0;min-height:0}
+  canvas{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:block;
+    border-radius:14px;touch-action:none;cursor:pointer;
+    box-shadow:0 14px 38px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.07)}
+  .panel{flex:0 0 268px;display:flex;flex-direction:column;gap:10px;overflow-y:auto}
+  .card{background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.075);
+    border-radius:14px;padding:12px 14px}
+  .lbl{font-size:12px;color:#8ea3b7;margin-bottom:8px;font-weight:700;letter-spacing:.5px}
+  .big{font-size:17px;font-weight:800;color:#f3e4c3}
+  .sub{font-size:13px;color:#9fb3c8;margin-top:5px;line-height:1.6}
+  .status{border-radius:12px;padding:11px 13px;font-size:14px;font-weight:700;line-height:1.55;
+    border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.06);color:#cfdcea}
+  .status.ok{background:rgba(61,220,132,.16);border-color:rgba(61,220,132,.4);color:#8ce8b0}
+  .status.bad{background:rgba(255,107,107,.16);border-color:rgba(255,107,107,.4);color:#ffb0b0}
+  .status.warn{background:rgba(240,192,96,.14);border-color:rgba(240,192,96,.35);color:#ffe1a3}
+  .btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;background:transparent;border:0;padding:0}
+  .btns button{font-family:inherit;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.08);
+    color:#e4edf6;padding:11px 8px;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;transition:.18s}
+  .btns button:hover{background:rgba(255,255,255,.16)}
+  .btns button:active{transform:scale(.96)}
+  .btns button:disabled{opacity:.35;cursor:not-allowed}
+  .btns .wide{grid-column:1/-1}
+  .progress{height:7px;background:rgba(255,255,255,.1);border-radius:4px;overflow:hidden;margin-top:9px}
+  .progress i{display:block;height:100%;background:linear-gradient(90deg,#3ddc84,#7fd7ff);width:0;transition:width .3s}
+  .plist{display:grid;grid-template-columns:repeat(8,1fr);gap:5px;margin-top:4px}
+  .plist button{aspect-ratio:1;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);
+    color:#cfdcea;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;padding:0}
+  .plist button.done{background:rgba(61,220,132,.28);border-color:rgba(61,220,132,.5);color:#c9f5dc}
+  .plist button.cur{outline:2px solid #f0c060;outline-offset:1px}
+  .kifu-list{max-height:230px;overflow-y:auto;font-size:13px;line-height:1.7;color:#9fb3c8;
+    font-variant-numeric:tabular-nums}
+  .kifu-list span{display:inline-block;min-width:74px;cursor:pointer;padding:1px 5px;border-radius:5px}
+  .kifu-list span:hover{background:rgba(255,255,255,.1)}
+  .kifu-list span.cur{background:#f0c060;color:#231a08;font-weight:800}
+  .ctl{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
+  .ctl button{font-family:inherit;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.08);
+    color:#e4edf6;min-width:46px;padding:10px 6px;border-radius:11px;font-size:15px;font-weight:800;cursor:pointer}
+  .ctl button:hover{background:rgba(255,255,255,.17)}
+  .ctl button.primary{background:#f0c060;color:#231a08;border-color:#f0c060}
+  .filebox{border:1.5px dashed rgba(255,255,255,.22);border-radius:12px;padding:16px;text-align:center;
+    font-size:13px;color:#9fb3c8;cursor:pointer;transition:.18s}
+  .filebox:hover,.filebox.over{border-color:#7fd7ff;background:rgba(127,215,255,.08);color:#cfe9ff}
+  .samples{display:flex;flex-direction:column;gap:6px}
+  .samples button{text-align:left;font-family:inherit;border:1px solid rgba(255,255,255,.1);
+    background:rgba(255,255,255,.06);color:#cfdcea;padding:9px 11px;border-radius:10px;font-size:13px;
+    font-weight:600;cursor:pointer}
+  .samples button:hover{background:rgba(255,255,255,.14)}
+
+  /* 全部完成弹窗 */
+  .done-mask{position:fixed;inset:0;background:rgba(4,9,14,.76);-webkit-backdrop-filter:blur(6px);
+    backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;z-index:200;padding:20px}
+  .done-mask.show{display:flex}
+  .done-card{background:linear-gradient(165deg,#2a3b52,#161e28);border:1px solid rgba(255,224,138,.3);
+    border-radius:22px;padding:30px 28px 24px;max-width:370px;width:100%;text-align:center;
+    box-shadow:0 28px 70px rgba(0,0,0,.72);animation:donePop .34s cubic-bezier(.2,1.25,.45,1)}
+  @keyframes donePop{from{transform:scale(.86);opacity:0}to{transform:scale(1);opacity:1}}
+  .done-icon{font-size:56px;line-height:1;margin-bottom:12px}
+  .done-card h2{font-size:26px;margin:0 0 10px;color:#ffe08a;letter-spacing:2px}
+  .done-card p{font-size:14px;color:#b9c9d8;line-height:1.8;margin:0 0 20px}
+  .done-btns{display:flex;gap:10px}
+  .done-btns button{flex:1;font-family:inherit;font-size:15px;font-weight:800;padding:12px 10px;
+    border-radius:12px;cursor:pointer;border:1px solid rgba(255,255,255,.12);
+    background:rgba(255,255,255,.08);color:#e4edf6;transition:.18s}
+  .done-btns button:hover{background:rgba(255,255,255,.17)}
+  .done-btns button.primary{background:#f0c060;color:#231a08;border-color:#f0c060}
+  .done-btns button.primary:hover{background:#ffd27a}
+  .plist button.done:last-child{box-shadow:none}
+  @media (max-width:820px){
+    header{padding:10px 12px}
+    .logo{font-size:15px}
+    .tabs button{padding:7px 13px;font-size:13px}
+    main{flex-direction:column;padding:0 10px 10px}
+    .pane{flex-direction:column}
+    .board-wrap{flex:1 1 50%}
+    .panel{flex:0 0 auto;flex-direction:row;flex-wrap:wrap;overflow:visible;gap:8px}
+    .panel .card{flex:1 1 150px;padding:10px 12px}
+    .kifu-list{max-height:110px}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">围棋练习</div>
+  <div class="tabs" id="tabs">
+    <button data-t="tsu" class="on">死活题</button>
+    <button data-t="kifu" class="k">打谱</button>
+  </div>
+  <a class="back" href="index.html">去对弈</a>
+  <a class="back" href="go-tutorial.html">入门教程</a>
+</header>
+
+<main>
+  <!-- ================= 死活题 ================= -->
+  <section class="pane on" id="paneTsu">
+    <div class="board-wrap"><canvas id="cvTsu"></canvas></div>
+    <aside class="panel">
+      <div class="card">
+        <div class="lbl" id="tsuLabel">第 1 / 16 题</div>
+        <div class="big" id="tsuName">一口气</div>
+        <div class="sub">黑先 · 吃掉<span style="color:#ff8a80">红点</span>标出的白棋</div>
+        <div class="progress"><i id="tsuBar"></i></div>
+      </div>
+      <div class="status" id="tsuStatus">点棋盘落子。把白棋的气全部堵住就成功。</div>
+      <div class="card btns">
+        <button id="tsuRetry">重来本题</button>
+        <button id="tsuHint">看提示</button>
+        <button id="tsuPrev">上一题</button>
+        <button id="tsuNext">下一题</button>
+      </div>
+      <div class="card">
+        <div class="lbl">题目列表</div>
+        <div class="plist" id="tsuList"></div>
+      </div>
+    </aside>
+
+    <div class="done-mask" id="tsuDone">
+      <div class="done-card">
+        <div class="done-icon">🏆</div>
+        <h2>全部完成！</h2>
+        <p id="tsuDoneText">16 道死活题全部做出来了，真棒！</p>
+        <div class="done-btns">
+          <button class="primary" id="tsuDoneAgain">再来一遍</button>
+          <button id="tsuDoneClose">继续看题</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 打谱 ================= -->
+  <section class="pane" id="paneKifu">
+    <div class="board-wrap"><canvas id="cvKifu"></canvas></div>
+    <aside class="panel">
+      <div class="card">
+        <div class="lbl">当前局面</div>
+        <div class="big" id="kifuTitle">未载入棋谱</div>
+        <div class="sub" id="kifuInfo">载入 SGF 或点下面的示例</div>
+      </div>
+      <div class="card">
+        <div class="lbl">播放</div>
+        <div class="ctl">
+          <button id="kFirst">|◀</button>
+          <button id="kPrev">◀</button>
+          <button id="kPlay" class="primary">▶</button>
+          <button id="kNext">▶</button>
+          <button id="kLast">▶|</button>
+        </div>
+        <div class="ctl" style="margin-top:8px">
+          <button data-sp="1200">慢</button>
+          <button data-sp="650">中</button>
+          <button data-sp="280">快</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="lbl">载入棋谱</div>
+        <div class="filebox" id="kDrop">点这里选 SGF 文件<br><span style="font-size:12px">也可以把文件拖进来</span></div>
+        <input type="file" id="kFile" accept=".sgf,.SGF,text/plain" style="display:none">
+        <div class="samples" id="kSamples" style="margin-top:10px"></div>
+      </div>
+      <div class="card">
+        <div class="lbl">棋谱</div>
+        <div class="kifu-list" id="kList">（还没有载入棋谱）</div>
+      </div>
+    </aside>
+  </section>
+</main>
+
+<script>
+/* =====================================================================
+   0. 题目数据（由 _problems.js 注入）
+   ===================================================================== */
+var PROBLEMS = [
+ {
+  "name": "一口气",
+  "hint": "白子只剩最后一口气了，堵住它就吃掉。",
+  "stones": [
+   [
+    4,
+    4,
+    "w"
+   ],
+   [
+    3,
+    4,
+    "b"
+   ],
+   [
+    4,
+    3,
+    "b"
+   ],
+   [
+    4,
+    5,
+    "b"
+   ]
+  ],
+  "target": [
+   4,
+   4
+  ],
+  "depth": 1,
+  "wins": [
+   [
+    5,
+    4
+   ]
+  ]
+ },
+ {
+  "name": "两子的气",
+  "hint": "两颗白子连在一起，气也是共用的。它们还剩几口气？",
+  "stones": [
+   [
+    4,
+    4,
+    "w"
+   ],
+   [
+    4,
+    5,
+    "w"
+   ],
+   [
+    3,
+    4,
+    "b"
+   ],
+   [
+    5,
+    4,
+    "b"
+   ],
+   [
+    4,
+    3,
+    "b"
+   ],
+   [
+    3,
+    5,
+    "b"
+   ],
+   [
+    5,
+    5,
+    "b"
+   ]
+  ],
+  "target": [
+   4,
+   4
+  ],
+  "depth": 1,
+  "wins": [
+   [
+    4,
+    6
+   ]
+  ]
+ },
+ {
+  "name": "贴边角的白子",
+  "hint": "角上的棋子气最少。",
+  "stones": [
+   [
+    0,
+    0,
+    "w"
+   ],
+   [
+    1,
+    0,
+    "b"
+   ]
+  ],
+  "target": [
+   0,
+   0
+  ],
+  "depth": 1,
+  "wins": [
+   [
+    0,
+    1
+   ]
+  ]
+ },
+ {
+  "name": "边上的白子",
+  "hint": "边上的棋子只有三口气。",
+  "stones": [
+   [
+    4,
+    0,
+    "w"
+   ],
+   [
+    3,
+    0,
+    "b"
+   ],
+   [
+    5,
+    0,
+    "b"
+   ]
+  ],
+  "target": [
+   4,
+   0
+  ],
+  "depth": 1,
+  "wins": [
+   [
+    4,
+    1
+   ]
+  ]
+ },
+ {
+  "name": "吃白 3 子",
+  "hint": "白棋有 3 口气。它想逃，你要一步步把气收紧。",
+  "stones": [
+   [
+    6,
+    4,
+    "b"
+   ],
+   [
+    7,
+    4,
+    "b"
+   ],
+   [
+    6,
+    5,
+    "w"
+   ],
+   [
+    7,
+    5,
+    "w"
+   ],
+   [
+    8,
+    5,
+    "w"
+   ],
+   [
+    6,
+    6,
+    "b"
+   ],
+   [
+    7,
+    6,
+    "b"
+   ]
+  ],
+  "target": [
+   6,
+   5
+  ],
+  "depth": 3,
+  "wins": [
+   [
+    5,
+    5
+   ]
+  ]
+ },
+ {
+  "name": "吃白 3 子",
+  "hint": "白棋有 2 口气。它想逃，你要一步步把气收紧。",
+  "stones": [
+   [
+    2,
+    6,
+    "b"
+   ],
+   [
+    3,
+    6,
+    "w"
+   ],
+   [
+    4,
+    6,
+    "b"
+   ],
+   [
+    3,
+    7,
+    "w"
+   ],
+   [
+    4,
+    7,
+    "b"
+   ],
+   [
+    2,
+    8,
+    "b"
+   ],
+   [
+    3,
+    8,
+    "w"
+   ],
+   [
+    4,
+    8,
+    "b"
+   ]
+  ],
+  "target": [
+   3,
+   6
+  ],
+  "depth": 3,
+  "wins": [
+   [
+    3,
+    5
+   ]
+  ]
+ },
+ {
+  "name": "吃白 3 子",
+  "hint": "白棋有 2 口气。它想逃，你要一步步把气收紧。",
+  "stones": [
+   [
+    6,
+    2,
+    "b"
+   ],
+   [
+    7,
+    2,
+    "b"
+   ],
+   [
+    6,
+    3,
+    "w"
+   ],
+   [
+    7,
+    3,
+    "w"
+   ],
+   [
+    8,
+    3,
+    "w"
+   ],
+   [
+    6,
+    4,
+    "b"
+   ],
+   [
+    7,
+    4,
+    "b"
+   ],
+   [
+    8,
+    4,
+    "b"
+   ]
+  ],
+  "target": [
+   6,
+   3
+  ],
+  "depth": 3,
+  "wins": [
+   [
+    5,
+    3
+   ]
+  ]
+ },
+ {
+  "name": "吃白 3 子",
+  "hint": "白棋有 2 口气。它想逃，你要一步步把气收紧。",
+  "stones": [
+   [
+    5,
+    2,
+    "b"
+   ],
+   [
+    6,
+    2,
+    "w"
+   ],
+   [
+    7,
+    2,
+    "b"
+   ],
+   [
+    5,
+    3,
+    "b"
+   ],
+   [
+    6,
+    3,
+    "w"
+   ],
+   [
+    7,
+    3,
+    "w"
+   ],
+   [
+    6,
+    4,
+    "b"
+   ],
+   [
+    7,
+    4,
+    "b"
+   ]
+  ],
+  "target": [
+   6,
+   3
+  ],
+  "depth": 3,
+  "wins": [
+   [
+    6,
+    1
+   ]
+  ]
+ },
+ {
+  "name": "吃白 3 子",
+  "hint": "白棋有 2 口气。它想逃，你要一步步把气收紧。",
+  "stones": [
+   [
+    5,
+    5,
+    "b"
+   ],
+   [
+    6,
+    5,
+    "w"
+   ],
+   [
+    7,
+    5,
+    "b"
+   ],
+   [
+    5,
+    6,
+    "b"
+   ],
+   [
+    6,
+    6,
+    "w"
+   ],
+   [
+    7,
+    6,
+    "b"
+   ],
+   [
+    5,
+    7,
+    "b"
+   ],
+   [
+    6,
+    7,
+    "w"
+   ],
+   [
+    7,
+    7,
+    "b"
+   ]
+  ],
+  "target": [
+   6,
+   6
+  ],
+  "depth": 3,
+  "wins": [
+   [
+    6,
+    4
+   ]
+  ]
+ },
+ {
+  "name": "吃白 3 子",
+  "hint": "白棋有 3 口气。它想逃，你要一步步把气收紧。",
+  "stones": [
+   [
+    0,
+    5,
+    "b"
+   ],
+   [
+    1,
+    5,
+    "b"
+   ],
+   [
+    2,
+    5,
+    "b"
+   ],
+   [
+    0,
+    6,
+    "w"
+   ],
+   [
+    1,
+    6,
+    "w"
+   ],
+   [
+    2,
+    6,
+    "w"
+   ],
+   [
+    2,
+    7,
+    "b"
+   ]
+  ],
+  "target": [
+   2,
+   6
+  ],
+  "depth": 3,
+  "wins": [
+   [
+    3,
+    6
+   ]
+  ]
+ },
+ {
+  "name": "吃白 3 子",
+  "hint": "白棋有 2 口气。它想逃，你要一步步把气收紧。",
+  "stones": [
+   [
+    3,
+    5,
+    "b"
+   ],
+   [
+    5,
+    5,
+    "b"
+   ],
+   [
+    2,
+    6,
+    "b"
+   ],
+   [
+    3,
+    6,
+    "w"
+   ],
+   [
+    4,
+    6,
+    "w"
+   ],
+   [
+    5,
+    6,
+    "w"
+   ],
+   [
+    3,
+    7,
+    "b"
+   ],
+   [
+    4,
+    7,
+    "b"
+   ],
+   [
+    5,
+    7,
+    "b"
+   ]
+  ],
+  "target": [
+   4,
+   6
+  ],
+  "depth": 3,
+  "wins": [
+   [
+    6,
+    6
+   ]
+  ]
+ },
+ {
+  "name": "吃白 3 子",
+  "hint": "白棋有 2 口气。它想逃，你要一步步把气收紧。",
+  "stones": [
+   [
+    6,
+    5,
+    "b"
+   ],
+   [
+    5,
+    6,
+    "b"
+   ],
+   [
+    6,
+    6,
+    "w"
+   ],
+   [
+    7,
+    6,
+    "b"
+   ],
+   [
+    5,
+    7,
+    "w"
+   ],
+   [
+    6,
+    7,
+    "w"
+   ],
+   [
+    7,
+    7,
+    "b"
+   ],
+   [
+    6,
+    8,
+    "b"
+   ]
+  ],
+  "target": [
+   6,
+   6
+  ],
+  "depth": 3,
+  "wins": [
+   [
+    4,
+    7
+   ]
+  ]
+ },
+ {
+  "name": "吃白 3 子",
+  "hint": "白棋有 2 口气。它想逃，你要一步步把气收紧。",
+  "stones": [
+   [
+    3,
+    1,
+    "b"
+   ],
+   [
+    4,
+    1,
+    "w"
+   ],
+   [
+    5,
+    1,
+    "b"
+   ],
+   [
+    3,
+    2,
+    "b"
+   ],
+   [
+    4,
+    2,
+    "w"
+   ],
+   [
+    5,
+    2,
+    "w"
+   ],
+   [
+    6,
+    2,
+    "b"
+   ],
+   [
+    4,
+    3,
+    "b"
+   ]
+  ],
+  "target": [
+   5,
+   2
+  ],
+  "depth": 3,
+  "wins": [
+   [
+    5,
+    3
+   ]
+  ]
+ },
+ {
+  "name": "吃白 3 子",
+  "hint": "白棋有 2 口气。它想逃，你要一步步把气收紧。",
+  "stones": [
+   [
+    6,
+    0,
+    "b"
+   ],
+   [
+    5,
+    1,
+    "b"
+   ],
+   [
+    6,
+    1,
+    "w"
+   ],
+   [
+    5,
+    2,
+    "w"
+   ],
+   [
+    6,
+    2,
+    "w"
+   ],
+   [
+    7,
+    2,
+    "b"
+   ],
+   [
+    5,
+    3,
+    "b"
+   ],
+   [
+    6,
+    3,
+    "b"
+   ]
+  ],
+  "target": [
+   6,
+   2
+  ],
+  "depth": 3,
+  "wins": [
+   [
+    4,
+    2
+   ]
+  ]
+ },
+ {
+  "name": "吃白 3 子",
+  "hint": "白棋有 3 口气。它想逃，你要一步步把气收紧。",
+  "stones": [
+   [
+    1,
+    2,
+    "b"
+   ],
+   [
+    2,
+    2,
+    "b"
+   ],
+   [
+    0,
+    3,
+    "w"
+   ],
+   [
+    1,
+    3,
+    "w"
+   ],
+   [
+    2,
+    3,
+    "w"
+   ],
+   [
+    3,
+    3,
+    "b"
+   ],
+   [
+    2,
+    4,
+    "b"
+   ]
+  ],
+  "target": [
+   2,
+   3
+  ],
+  "depth": 3,
+  "wins": [
+   [
+    1,
+    4
+   ]
+  ]
+ },
+ {
+  "name": "吃白 3 子",
+  "hint": "白棋有 2 口气。它想逃，你要一步步把气收紧。",
+  "stones": [
+   [
+    1,
+    1,
+    "b"
+   ],
+   [
+    2,
+    1,
+    "b"
+   ],
+   [
+    0,
+    2,
+    "b"
+   ],
+   [
+    1,
+    2,
+    "w"
+   ],
+   [
+    2,
+    2,
+    "w"
+   ],
+   [
+    3,
+    2,
+    "b"
+   ],
+   [
+    2,
+    3,
+    "w"
+   ],
+   [
+    3,
+    3,
+    "b"
+   ]
+  ],
+  "target": [
+   2,
+   3
+  ],
+  "depth": 3,
+  "wins": [
+   [
+    2,
+    4
+   ]
+  ]
+ }
+];
+
+var SAMPLE_SGF = "(;GM[1]FF[4]CA[UTF-8]SZ[9]GN[电脑自战一局]PB[电脑(黑)]PW[电脑(白)];B[ee];W[cc];B[gg];W[cg];B[gc];W[dc];B[fc];W[ec];B[fd];W[dd];B[ed];W[cd];B[de];W[ce];B[df];W[cf];B[fe];W[db];B[fb];W[eb];B[dg];W[bf];B[ef];W[ch];B[eg];W[dh];B[fg];W[eh];B[gh];W[fh];B[ff];W[bg];B[gd];W[cb];B[ge];W[be];B[gf];W[bh];B[gb];W[bb];B[hd];W[bd];B[hc];W[ca];B[hg];W[ba];B[hf];W[bc];B[he];W[da];B[hb];W[ea];B[fa];W[ae];B[ha];W[af];B[id];W[ad];B[hh];W[fi];B[hi];W[ei];B[gi];W[di];B[ic];W[ag];B[ib];W[ah];B[ie];W[ac];B[if];W[aa];B[ig];W[ai];B[ih];W[bi];B[];W[])";
+
+/* =====================================================================
+   1. 棋盘基础工具（和主程序一致）
+   ===================================================================== */
+var EMPTY = 0, BLACK = 1, WHITE = 2;
+
+function forEachNeighbor(x, y, size, cb) {
+  if (x > 0)        cb(x - 1, y);
+  if (x < size - 1) cb(x + 1, y);
+  if (y > 0)        cb(x, y - 1);
+  if (y < size - 1) cb(x, y + 1);
+}
+
+function groupInfo(board, x, y, size) {
+  var color = board[y][x];
+  var seen = new Uint8Array(size * size);
+  var stack = [[x, y]];
+  seen[y * size + x] = 1;
+  var stones = [], libs = new Set();
+  while (stack.length) {
+    var p = stack.pop(), cx = p[0], cy = p[1];
+    stones.push([cx, cy]);
+    forEachNeighbor(cx, cy, size, function (nx, ny) {
+      var v = board[ny][nx];
+      if (v === EMPTY) libs.add(ny * size + nx);
+      else if (v === color && !seen[ny * size + nx]) {
+        seen[ny * size + nx] = 1;
+        stack.push([nx, ny]);
+      }
+    });
+  }
+  return { stones: stones, liberties: libs.size };
+}
+
+function tryPlay(board, size, x, y, color) {
+  if (x < 0 || y < 0 || x >= size || y >= size) return { ok: false };
+  if (board[y][x] !== EMPTY) return { ok: false };
+  var nb = board.map(function (r) { return r.slice(); });
+  nb[y][x] = color;
+  var opp = 3 - color, captured = [];
+  forEachNeighbor(x, y, size, function (nx, ny) {
+    if (nb[ny][nx] === opp) {
+      var g = groupInfo(nb, nx, ny, size);
+      if (g.liberties === 0) {
+        g.stones.forEach(function (s) { nb[s[1]][s[0]] = EMPTY; captured.push(s); });
+      }
+    }
+  });
+  var own = groupInfo(nb, x, y, size);
+  if (own.liberties === 0) return { ok: false };
+  return { ok: true, board: nb, captured: captured };
+}
+
+function emptyBoard(size) {
+  var b = [];
+  for (var y = 0; y < size; y++) { var r = []; for (var x = 0; x < size; x++) r.push(EMPTY); b.push(r); }
+  return b;
+}
+
+/* =====================================================================
+   2. 死活搜索器（带记忆化 + 节点上限）
+   ===================================================================== */
+var _memoB = {}, _memoW = {}, _nodes = 0, _nodeCap = 40000, _blown = false;
+
+function boardKey(b) {
+  var s = '';
+  for (var y = 0; y < b.length; y++) s += b[y].join('');
+  return s;
+}
+function putOn(board, size, x, y, color) {
+  var r = tryPlay(board, size, x, y, color);
+  return r.ok ? r.board : null;
+}
+function isDeadAt(board, tx, ty) { return board[ty][tx] === EMPTY; }
+
+function nearEmpty(board, size, tx, ty, radius) {
+  var out = [], r = radius || 2;
+  var x0 = Math.max(0, tx - r), x1 = Math.min(size - 1, tx + r);
+  var y0 = Math.max(0, ty - r), y1 = Math.min(size - 1, ty + r);
+  for (var y = y0; y <= y1; y++)
+    for (var x = x0; x <= x1; x++)
+      if (board[y][x] === EMPTY) out.push(y * size + x);
+  return out;
+}
+
+function solverReset() { _memoB = {}; _memoW = {}; _nodes = 0; _blown = false; }
+
+function blackCanCapture(board, size, tx, ty, depth) {
+  if (_blown) return false;
+  if (isDeadAt(board, tx, ty)) return true;
+  if (depth <= 0) return false;
+  if (++_nodes > _nodeCap) { _blown = true; return false; }
+  var mk = boardKey(board) + '|' + depth;
+  if (_memoB[mk] !== undefined) return _memoB[mk];
+  var cands = nearEmpty(board, size, tx, ty, 2);
+  for (var i = 0; i < cands.length; i++) {
+    var k = cands[i], x = k % size, y = (k - x) / size;
+    var nb = putOn(board, size, x, y, BLACK);
+    if (!nb) continue;
+    if (isDeadAt(nb, tx, ty)) { _memoB[mk] = true; return true; }
+    if (!whiteCanSurvive(nb, size, tx, ty, depth - 1)) { _memoB[mk] = true; return true; }
+  }
+  _memoB[mk] = false;
+  return false;
+}
+
+function whiteCanSurvive(board, size, tx, ty, depth) {
+  if (_blown) return true;
+  if (depth <= 0) return true;                 /* 黑已经没手数了 */
+  if (++_nodes > _nodeCap) { _blown = true; return true; }
+  var mk = boardKey(board) + '|' + depth;
+  if (_memoW[mk] !== undefined) return _memoW[mk];
+  var cands = nearEmpty(board, size, tx, ty, 2);
+  for (var i = 0; i < cands.length; i++) {
+    var k = cands[i], x = k % size, y = (k - x) / size;
+    var nb = putOn(board, size, x, y, WHITE);
+    if (!nb) continue;
+    if (isDeadAt(nb, tx, ty)) continue;
+    if (!blackCanCapture(nb, size, tx, ty, depth)) { _memoW[mk] = true; return true; }
+  }
+  _memoW[mk] = false;
+  return false;
+}
+
+/* 白棋最顽强的应手 */
+function whiteDefense(board, size, tx, ty, rem) {
+  var cands = nearEmpty(board, size, tx, ty, 2);
+  var fallback = null;
+  /* 先找能活命的：白走完，黑剩 rem 手也吃不到 */
+  for (var i = 0; i < cands.length; i++) {
+    var k = cands[i], x = k % size, y = (k - x) / size;
+    var nb = putOn(board, size, x, y, WHITE);
+    if (!nb || isDeadAt(nb, tx, ty)) continue;
+    solverReset();
+    if (!blackCanCapture(nb, size, tx, ty, rem)) return nb;
+    if (fallback === null) fallback = nb;
+  }
+  /* 活不了就拖最久：让黑棋得用满手数才吃得掉 */
+  for (var j = 0; j < cands.length; j++) {
+    var k2 = cands[j], x2 = k2 % size, y2 = (k2 - x2) / size;
+    var nb2 = putOn(board, size, x2, y2, WHITE);
+    if (!nb2 || isDeadAt(nb2, tx, ty)) continue;
+    solverReset();
+    if (!blackCanCapture(nb2, size, tx, ty, Math.max(0, rem - 1))) return nb2;
+  }
+  return fallback;
+}
+
+/* =====================================================================
+   3. 棋盘绘制（两个画面共用）
+   ===================================================================== */
+var STARS = {
+  9:  [[2,2],[2,6],[6,2],[6,6],[4,4]],
+  13: [[3,3],[3,9],[9,3],[9,9],[6,6]],
+  19: [[3,3],[3,9],[3,15],[9,3],[9,9],[9,15],[15,3],[15,9],[15,15]]
+};
+
+function Drawer(canvas) {
+  this.canvas = canvas;
+  this.ctx = canvas.getContext('2d');
+  this.S = 400; this.cell = 40; this.margin = 40; this.size = 9;
+}
+Drawer.prototype.resize = function (wrap) {
+  var r = wrap.getBoundingClientRect();
+  var avail = Math.max(160, Math.min(r.width, r.height) - 4);
+  this.S = Math.floor(avail);
+  this.canvas.style.width = this.S + 'px';
+  this.canvas.style.height = this.S + 'px';
+  var dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+  this.canvas.width = Math.round(this.S * dpr);
+  this.canvas.height = Math.round(this.S * dpr);
+  this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  this.cell = this.S / (this.size + 1);
+  this.margin = this.cell;
+};
+Drawer.prototype.xy = function (i) { return this.margin + i * this.cell; };
+Drawer.prototype.hit = function (px, py) {
+  var i = Math.round((px - this.margin) / this.cell);
+  var j = Math.round((py - this.margin) / this.cell);
+  if (i < 0 || j < 0 || i >= this.size || j >= this.size) return null;
+  return [i, j];
+};
+
+Drawer.prototype.wood = function () {
+  var ctx = this.ctx, S = this.S;
+  ctx.fillStyle = '#dcb678';
+  ctx.fillRect(0, 0, S, S);
+  var g = ctx.createRadialGradient(S * 0.5, S * 0.34, S * 0.04, S * 0.5, S * 0.5, S * 0.85);
+  g.addColorStop(0, 'rgba(255,240,208,0.55)');
+  g.addColorStop(1, 'rgba(112,72,22,0.24)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
+  ctx.save();
+  ctx.globalAlpha = 0.05; ctx.strokeStyle = '#6b4514';
+  ctx.lineWidth = Math.max(1, S * 0.003);
+  for (var k = 0; k < 14; k++) {
+    var yk = (k + 0.5) * S / 14 + Math.sin(k * 1.7) * 6;
+    ctx.beginPath(); ctx.moveTo(0, yk);
+    ctx.bezierCurveTo(S * 0.3, yk + 9, S * 0.7, yk - 9, S, yk + 4); ctx.stroke();
+  }
+  ctx.restore();
+};
+
+Drawer.prototype.grid = function () {
+  var ctx = this.ctx, N = this.size, c = this.cell, m = this.margin;
+  var lw = Math.max(1, c * 0.05);
+  var a = m, b = m + (N - 1) * c;
+  ctx.strokeStyle = 'rgba(52,34,10,0.75)'; ctx.lineWidth = lw; ctx.lineCap = 'round';
+  for (var i = 0; i < N; i++) {
+    var p = m + i * c;
+    ctx.beginPath(); ctx.moveTo(p, a); ctx.lineTo(p, b); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(a, p); ctx.lineTo(b, p); ctx.stroke();
+  }
+  ctx.strokeStyle = 'rgba(52,34,10,0.92)'; ctx.lineWidth = lw * 1.7;
+  ctx.strokeRect(a, a, b - a, b - a);
+  var stars = STARS[N] || [];
+  ctx.fillStyle = 'rgba(52,34,10,0.92)';
+  for (var s = 0; s < stars.length; s++) {
+    ctx.beginPath();
+    ctx.arc(this.xy(stars[s][0]), this.xy(stars[s][1]), Math.max(2, c * 0.11), 0, Math.PI * 2);
+    ctx.fill();
+  }
+};
+
+Drawer.prototype.coords = function () {
+  var ctx = this.ctx, N = this.size, c = this.cell, m = this.margin, S = this.S;
+  var fs = Math.max(9, Math.min(c * 0.4, 14));
+  ctx.fillStyle = 'rgba(72,46,12,0.62)';
+  ctx.font = '700 ' + fs + 'px -apple-system,"PingFang SC",sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  var letters = 'ABCDEFGHJKLMNOPQRST';
+  for (var i = 0; i < N; i++) {
+    ctx.fillText(letters[i], this.xy(i), m * 0.46);
+    ctx.fillText(letters[i], this.xy(i), S - m * 0.46);
+  }
+  for (var j = 0; j < N; j++) {
+    var label = String(N - j);
+    ctx.fillText(label, m * 0.46, this.xy(j));
+    ctx.fillText(label, S - m * 0.46, this.xy(j));
+  }
+};
+
+Drawer.prototype.stone = function (cx, cy, r, color, alpha) {
+  var ctx = this.ctx;
+  if (alpha === undefined) alpha = 1;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.beginPath(); ctx.arc(cx + r * 0.06, cy + r * 0.13, r, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(30,20,5,0.28)'; ctx.fill();
+  var g = ctx.createRadialGradient(cx - r * 0.33, cy - r * 0.38, r * 0.08, cx, cy, r);
+  if (color === BLACK) { g.addColorStop(0, '#7a7a7a'); g.addColorStop(0.42, '#2b2b2b'); g.addColorStop(1, '#050505'); }
+  else { g.addColorStop(0, '#ffffff'); g.addColorStop(0.55, '#f6f3eb'); g.addColorStop(1, '#c9c2b3'); }
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.strokeStyle = color === BLACK ? 'rgba(0,0,0,0.9)' : 'rgba(132,120,100,0.75)';
+  ctx.lineWidth = Math.max(0.8, r * 0.07); ctx.stroke();
+  var hl = ctx.createRadialGradient(cx - r * 0.34, cy - r * 0.4, 0, cx - r * 0.34, cy - r * 0.4, r * 0.8);
+  hl.addColorStop(0, color === BLACK ? 'rgba(255,255,255,0.30)' : 'rgba(255,255,255,0.9)');
+  hl.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fillStyle = hl; ctx.fill();
+  ctx.restore();
+};
+
+Drawer.prototype.clear = function (size) {
+  if (size) this.size = size;
+  var ctx = this.ctx, S = this.S;
+  ctx.clearRect(0, 0, S, S);
+  this.wood(); this.grid(); this.coords();
+};
+
+Drawer.prototype.stones = function (board) {
+  var r = this.cell * 0.47;
+  for (var y = 0; y < this.size; y++)
+    for (var x = 0; x < this.size; x++)
+      if (board[y][x]) this.stone(this.xy(x), this.xy(y), r, board[y][x]);
+};
+
+/* =====================================================================
+   4. 死活题
+   ===================================================================== */
+var TSU = { idx: 0, board: null, remaining: 0, solved: false, failed: false, done: {} };
+var SIZE9 = 9;
+var tsuDrawer = new Drawer(document.getElementById('cvTsu'));
+
+function tsuProblem() { return PROBLEMS[TSU.idx]; }
+
+function tsuLoad(i) {
+  TSU.idx = ((i % PROBLEMS.length) + PROBLEMS.length) % PROBLEMS.length;
+  var p = tsuProblem();
+  TSU.board = emptyBoard(SIZE9);
+  p.stones.forEach(function (s) {
+    TSU.board[s[1]][s[0]] = (s[2] === 'b') ? BLACK : WHITE;
+  });
+  TSU.remaining = p.depth;
+  TSU.solved = false;
+  TSU.failed = false;
+  tsuDrawer.size = SIZE9;
+  tsuDrawer.cell = tsuDrawer.S / (SIZE9 + 1);
+  tsuDrawer.margin = tsuDrawer.cell;
+  tsuRender();
+  tsuMsg('黑先。把<span style="color:#ff8a80">红点</span>那串白棋的气全部堵住，就能吃掉它。', '');
+  document.getElementById('tsuName').textContent = p.name;
+  tsuUpdateList();
+}
+
+function tsuMsg(html, cls) {
+  var el = document.getElementById('tsuStatus');
+  el.innerHTML = html;
+  el.className = 'status' + (cls ? ' ' + cls : '');
+}
+
+function tsuRender() {
+  if (!TSU.board) return;                 /* 初始化时棋盘还没准备好 */
+  var d = tsuDrawer;
+  d.clear(SIZE9);
+  d.stones(TSU.board);
+  /* 标出目标白棋 */
+  var p = tsuProblem();
+  var g = groupInfo(TSU.board, p.target[0], p.target[1], SIZE9);
+  var r = d.cell * 0.47;
+  d.ctx.save();
+  g.stones.forEach(function (s) {
+    d.ctx.beginPath();
+    d.ctx.arc(d.xy(s[0]), d.xy(s[1]), Math.max(2.4, r * 0.3), 0, Math.PI * 2);
+    d.ctx.fillStyle = '#ff4d4f';
+    d.ctx.fill();
+    d.ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+    d.ctx.lineWidth = Math.max(1, r * 0.1);
+    d.ctx.stroke();
+  });
+  d.ctx.restore();
+}
+
+function tsuClick(x, y) {
+  if (TSU.solved) { tsuMsg('本题已经完成了，点「下一题」继续。', 'ok'); return; }
+  if (TSU.failed) { tsuMsg('本题走错了，点「重来本题」再试一次。', 'bad'); return; }
+  var p = tsuProblem();
+  var tx = p.target[0], ty = p.target[1];
+
+  var res = tryPlay(TSU.board, SIZE9, x, y, BLACK);
+  if (!res.ok) { tsuMsg('这里不能落子。', 'warn'); return; }
+  TSU.board = res.board;
+  TSU.remaining--;
+  tsuRender();
+
+  if (isDeadAt(TSU.board, tx, ty)) {
+    tsuMarkSolved('漂亮！白棋被吃掉了。');
+    return;
+  }
+
+  /* 判断白棋是否已经跑掉（现在轮到白棋，黑还剩 remaining 手） */
+  solverReset();
+  var whiteAlive = whiteCanSurvive(TSU.board, SIZE9, tx, ty, Math.max(1, TSU.remaining));
+  if (whiteAlive) {
+    TSU.failed = true;
+    tsuMsg('这步不行 —— 白棋跑掉了。点「重来本题」再想想。', 'bad');
+    return;
+  }
+
+  /* 白棋应手 */
+  solverReset();
+  var wb = whiteDefense(TSU.board, SIZE9, tx, ty, Math.max(1, TSU.remaining));
+  if (wb) {
+    TSU.board = wb;
+    tsuRender();
+    if (isDeadAt(TSU.board, tx, ty)) {
+      tsuMarkSolved('吃掉啦！');
+      return;
+    }
+  }
+  tsuMsg('好，白棋正在挣扎。继续紧气！还剩 ' + TSU.remaining + ' 手机会。', '');
+}
+
+/* 标记本题完成；如果全部做完就弹出「完成」 */
+function tsuMarkSolved(word) {
+  TSU.solved = true;
+  TSU.done[TSU.idx] = 1;
+  tsuUpdateList();
+  if (tsuAllDone()) {
+    tsuMsg(word + '全部 ' + PROBLEMS.length + ' 道题都做完了 —— 太棒了！', 'ok');
+    setTimeout(tsuShowDone, 900);
+  } else {
+    tsuMsg(word + '还剩 ' + (PROBLEMS.length - Object.keys(TSU.done).length) + ' 道题，点「下一题」继续。', 'ok');
+  }
+}
+
+function tsuAllDone() { return Object.keys(TSU.done).length >= PROBLEMS.length; }
+function tsuShowDone() { document.getElementById('tsuDone').classList.add('show'); }
+function tsuHideDone() { document.getElementById('tsuDone').classList.remove('show'); }
+
+function tsuUpdateList() {
+  var box = document.getElementById('tsuList');
+  box.innerHTML = '';
+  PROBLEMS.forEach(function (p, i) {
+    var b = document.createElement('button');
+    b.textContent = i + 1;
+    if (TSU.done[i]) b.className = 'done';
+    if (i === TSU.idx) b.className += ' cur';
+    b.onclick = function () { tsuLoad(i); };
+    box.appendChild(b);
+  });
+  var n = Object.keys(TSU.done).length;
+  document.getElementById('tsuBar').style.width = (n / PROBLEMS.length * 100) + '%';
+  document.getElementById('tsuLabel').innerHTML = (n >= PROBLEMS.length)
+    ? '🏆 全部完成 <span style="color:#8ce8b0">' + n + ' / ' + PROBLEMS.length + '</span>'
+    : '第 <span id="tsuNo">' + (TSU.idx + 1) + '</span> / ' + PROBLEMS.length + ' 题';
+}
+
+document.getElementById('cvTsu').addEventListener('pointerdown', function (e) {
+  e.preventDefault();
+  var r = this.getBoundingClientRect();
+  var p = tsuDrawer.hit(e.clientX - r.left, e.clientY - r.top);
+  if (!p) return;
+  tsuClick(p[0], p[1]);
+});
+document.getElementById('tsuRetry').onclick = function () { tsuLoad(TSU.idx); };
+document.getElementById('tsuNext').onclick = function () {
+  if (tsuAllDone() && TSU.idx === PROBLEMS.length - 1) { tsuShowDone(); return; }
+  tsuLoad(TSU.idx + 1);
+};
+document.getElementById('tsuPrev').onclick = function () { tsuLoad(TSU.idx - 1); };
+document.getElementById('tsuDoneClose').onclick = tsuHideDone;
+document.getElementById('tsuDoneAgain').onclick = function () {
+  TSU.done = {};
+  tsuHideDone();
+  tsuLoad(0);
+  tsuUpdateList();
+};
+document.getElementById('tsuDone').onclick = function (e) {
+  if (e.target === this) tsuHideDone();
+};
+document.getElementById('tsuHint').onclick = function () {
+  var p = tsuProblem();
+  var w = p.wins && p.wins[0];
+  if (!w) { tsuMsg('提示：先看看白棋还剩几口气。', 'warn'); return; }
+  var letters = 'ABCDEFGHJKLMNOPQRST';
+  tsuMsg('提示：试试在 <b>' + letters[w[0]] + (9 - w[1]) + '</b> 附近落子。', 'warn');
+};
+
+/* =====================================================================
+   5. 打谱（SGF）
+   ===================================================================== */
+var KIFU = { size: 9, moves: [], pos: 0, boards: [], timer: null, speed: 650, title: '棋谱' };
+var kifuDrawer = new Drawer(document.getElementById('cvKifu'));
+
+/* 解析 SGF 的主分支 */
+function parseSGF(text) {
+  var i = 0, rootProps = {}, moves = [];
+
+  function skipWS() { while (i < text.length && /\s/.test(text[i])) i++; }
+
+  function readProps() {
+    var out = {};
+    skipWS();
+    while (i < text.length && /[A-Za-z]/.test(text[i])) {
+      var id = '';
+      while (i < text.length && /[A-Za-z]/.test(text[i])) id += text[i++];
+      var vals = [];
+      skipWS();
+      while (i < text.length && text[i] === '[') {
+        i++;
+        var v = '';
+        while (i < text.length && text[i] !== ']') {
+          if (text[i] === '\\') { i++; if (i < text.length) v += text[i++]; }
+          else v += text[i++];
+        }
+        if (i < text.length) i++;
+        vals.push(v);
+        skipWS();
+      }
+      if (out[id]) out[id] = out[id].concat(vals); else out[id] = vals;
+    }
+    return out;
+  }
+
+  /* main=true 时沿主线收集落子；分支只跟第一个（主线），其余整体跳过 */
+  function parseTree(main) {
+    skipWS();
+    if (text[i] !== '(') return;
+    i++;
+    var node = 0;
+    while (true) {
+      skipWS();
+      if (text[i] !== ';') break;
+      i++;
+      var np = readProps();
+      if (node === 0 && main && !rootProps.SZ && np.SZ) rootProps = np;
+      node++;
+      if (main) {
+        if (np.B) moves.push({ c: BLACK, v: np.B[0] || '' });
+        else if (np.W) moves.push({ c: WHITE, v: np.W[0] || '' });
+      }
+    }
+    var branch = 0;
+    while (true) {
+      skipWS();
+      if (text[i] !== '(') break;
+      parseTree(main && branch === 0);
+      branch++;
+    }
+    skipWS();
+    if (text[i] === ')') i++;
+  }
+
+  skipWS();
+  parseTree(true);
+
+  return {
+    moves: moves,
+    props: {
+      SZ: parseInt((rootProps.SZ || ['19'])[0], 10) || 19,
+      GN: (rootProps.GN || [''])[0],
+      AB: rootProps.AB || [],
+      AW: rootProps.AW || []
+    }
+  };
+}
+
+function sgfToXY(v) {
+  if (!v || v.length < 2) return null;
+  var x = v.charCodeAt(0) - 97, y = v.charCodeAt(1) - 97;
+  if (x < 0 || y < 0) return null;
+  return [x, y];
+}
+
+/* 逐手重建棋盘，存下每一步的局面 */
+function kifuBuild(moves, size, setupAB, setupAW) {
+  var boards = [];
+  var b = emptyBoard(size);
+  (setupAB || []).forEach(function (v) { var p = sgfToXY(v); if (p) b[p[1]][p[0]] = BLACK; });
+  (setupAW || []).forEach(function (v) { var p = sgfToXY(v); if (p) b[p[1]][p[0]] = WHITE; });
+  boards.push(b);
+  var cur = b, turn = BLACK;
+  for (var i = 0; i < moves.length; i++) {
+    var mv = moves[i];
+    var color = mv.c || turn;
+    if (!mv.v) {                       /* 虚手 */
+      boards.push(cur);
+      turn = 3 - color;
+      continue;
+    }
+    var p = sgfToXY(mv.v);
+    if (!p) { boards.push(cur); continue; }
+    var r = tryPlay(cur, size, p[0], p[1], color);
+    if (!r.ok) { boards.push(cur); turn = 3 - color; continue; }
+    cur = r.board;
+    boards.push(cur);
+    turn = 3 - color;
+  }
+  return boards;
+}
+
+function kifuLoad(text, name) {
+  var parsed;
+  try { parsed = parseSGF(text); } catch (e) { alert('SGF 解析失败：' + e.message); return; }
+  var size = parsed.props.SZ || 19;
+  if (size < 5 || size > 25) size = 19;
+  var mv = parsed.moves;
+  if (!mv.length) { alert('这个 SGF 里没有找到落子记录。'); return; }
+
+  KIFU.size = size;
+  KIFU.moves = mv;
+  KIFU.boards = kifuBuild(mv, size, parsed.props.AB, parsed.props.AW);
+  KIFU.pos = 0;
+  KIFU.title = name || parsed.props.GN || '棋谱';
+  kifuDrawer.size = size;
+  kifuDrawer.cell = kifuDrawer.S / (size + 1);
+  kifuDrawer.margin = kifuDrawer.cell;
+  kifuRender();
+  kifuUpdateUI();
+}
+
+function kifuRender() {
+  if (!KIFU.boards.length) { kifuDrawer.clear(KIFU.size); return; }
+  var d = kifuDrawer;
+  d.clear(KIFU.size);
+  var b = KIFU.boards[KIFU.pos];
+  d.stones(b);
+  /* 标出最后一手 */
+  if (KIFU.pos > 0) {
+    var mv = KIFU.moves[KIFU.pos - 1];
+    var p = mv && mv.v ? sgfToXY(mv.v) : null;
+    if (p) {
+      var r = d.cell * 0.47;
+      d.ctx.beginPath();
+      d.ctx.arc(d.xy(p[0]), d.xy(p[1]), Math.max(2.5, r * 0.26), 0, Math.PI * 2);
+      d.ctx.fillStyle = '#ff4d4f'; d.ctx.fill();
+      d.ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+      d.ctx.lineWidth = Math.max(1, r * 0.09); d.ctx.stroke();
+    }
+  }
+}
+
+function kifuUpdateUI() {
+  var n = KIFU.moves.length;
+  document.getElementById('kifuTitle').textContent = KIFU.title;
+  var info = KIFU.size + ' 路 · 共 ' + n + ' 手';
+  if (KIFU.pos > 0) {
+    var mv = KIFU.moves[KIFU.pos - 1];
+    info += ' · 当前第 ' + KIFU.pos + ' 手（' + ((KIFU.pos - 1) % 2 === 0 ? '黑' : '白') + '）';
+  } else {
+    info += ' · 开局';
+  }
+  document.getElementById('kifuInfo').textContent = info;
+
+  var box = document.getElementById('kList');
+  box.innerHTML = '';
+  if (!n) { box.textContent = '（还没有载入棋谱）'; return; }
+  var letters = 'ABCDEFGHJKLMNOPQRST';
+  for (var i = 0; i < n; i++) {
+    var v = KIFU.moves[i].v;
+    var p = v ? sgfToXY(v) : null;
+    var txt = (i + 1) + '. ' + ((i % 2 === 0) ? '黑' : '白') + (p ? ' ' + letters[p[0]] + (KIFU.size - p[1]) : ' 虚手');
+    var sp = document.createElement('span');
+    sp.textContent = txt;
+    sp.className = (i + 1 === KIFU.pos) ? 'cur' : '';
+    sp.onclick = (function (idx) {
+      return function () { KIFU.pos = idx + 1; kifuRender(); kifuUpdateUI(); };
+    })(i);
+    box.appendChild(sp);
+  }
+  var cur = box.querySelector('.cur');
+  if (cur) cur.scrollIntoView({ block: 'nearest' });
+}
+
+function kifuGo(delta) {
+  var np = KIFU.pos + delta;
+  if (np < 0) np = 0;
+  if (np > KIFU.moves.length) np = KIFU.moves.length;
+  if (np === KIFU.pos) { kifuStop(); return; }
+  KIFU.pos = np;
+  kifuRender(); kifuUpdateUI();
+  if (np >= KIFU.moves.length) kifuStop();
+}
+function kifuStop() {
+  if (KIFU.timer) { clearInterval(KIFU.timer); KIFU.timer = null; }
+  document.getElementById('kPlay').textContent = '▶';
+}
+function kifuPlay() {
+  if (KIFU.timer) { kifuStop(); return; }
+  if (!KIFU.moves.length) return;
+  if (KIFU.pos >= KIFU.moves.length) { KIFU.pos = 0; kifuRender(); kifuUpdateUI(); }
+  document.getElementById('kPlay').textContent = '❚❚';
+  KIFU.timer = setInterval(function () { kifuGo(1); }, KIFU.speed);
+}
+
+document.getElementById('kFirst').onclick = function () { kifuStop(); KIFU.pos = 0; kifuRender(); kifuUpdateUI(); };
+document.getElementById('kLast').onclick  = function () { kifuStop(); KIFU.pos = KIFU.moves.length; kifuRender(); kifuUpdateUI(); };
+document.getElementById('kPrev').onclick  = function () { kifuStop(); kifuGo(-1); };
+document.getElementById('kNext').onclick  = function () { kifuStop(); kifuGo(1); };
+document.getElementById('kPlay').onclick  = kifuPlay;
+document.querySelectorAll('[data-sp]').forEach(function (b) {
+  b.onclick = function () {
+    KIFU.speed = parseInt(b.dataset.sp, 10);
+    document.querySelectorAll('[data-sp]').forEach(function (x) { x.classList.toggle('primary', x === b); });
+    if (KIFU.timer) { kifuStop(); kifuPlay(); }
+  };
+});
+
+/* 载入 SGF */
+var drop = document.getElementById('kDrop');
+var fileEl = document.getElementById('kFile');
+drop.onclick = function () { fileEl.click(); };
+fileEl.onchange = function () {
+  var f = fileEl.files[0];
+  if (!f) return;
+  var fr = new FileReader();
+  fr.onload = function () { kifuLoad(String(fr.result), f.name.replace(/\.sgf$/i, '')); };
+  fr.readAsText(f);
+};
+['dragenter', 'dragover'].forEach(function (t) {
+  drop.addEventListener(t, function (e) { e.preventDefault(); drop.classList.add('over'); });
+});
+['dragleave', 'drop'].forEach(function (t) {
+  drop.addEventListener(t, function (e) { e.preventDefault(); drop.classList.remove('over'); });
+});
+drop.addEventListener('drop', function (e) {
+  var f = e.dataTransfer.files[0];
+  if (!f) return;
+  var fr = new FileReader();
+  fr.onload = function () { kifuLoad(String(fr.result), f.name.replace(/\.sgf$/i, '')); };
+  fr.readAsText(f);
+});
+
+/* 内置示例 */
+(function () {
+  var box = document.getElementById('kSamples');
+  var b = document.createElement('button');
+  b.textContent = '电脑自战一局（9 路 · 78 手）';
+  b.onclick = function () { kifuLoad(SAMPLE_SGF, '电脑自战（9 路）'); };
+  box.appendChild(b);
+})();
+
+/* =====================================================================
+   6. 切换 + 尺寸
+   ===================================================================== */
+var tabs = document.getElementById('tabs');
+tabs.addEventListener('click', function (e) {
+  var b = e.target.closest('button');
+  if (!b) return;
+  var t = b.dataset.t;
+  tabs.querySelectorAll('button').forEach(function (x) { x.classList.toggle('on', x === b); });
+  document.getElementById('paneTsu').classList.toggle('on', t === 'tsu');
+  document.getElementById('paneKifu').classList.toggle('on', t === 'kifu');
+  if (t === 'kifu') { kifuStop(); resizeAll(); }
+  else resizeAll();
+});
+
+function resizeAll() {
+  tsuDrawer.resize(document.querySelector('#paneTsu .board-wrap'));
+  kifuDrawer.resize(document.querySelector('#paneKifu .board-wrap'));
+  tsuRender();
+  kifuRender();
+}
+
+if (window.ResizeObserver) {
+  new ResizeObserver(function () { resizeAll(); }).observe(document.body);
+}
+window.addEventListener('resize', resizeAll);
+
+requestAnimationFrame(function () {
+  tsuLoad(0);
+  resizeAll();
+  kifuRender();
+  kifuUpdateUI();
+});
+</script>
+</body>
+</html>
