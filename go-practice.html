@@ -192,6 +192,7 @@
   </section>
 </main>
 
+<script src="i18n.js"></script>
 <script>
 /* =====================================================================
    0. 题目数据（由 _problems.js 注入）
@@ -1396,7 +1397,7 @@ function tsuClick(x, y) {
       return;
     }
   }
-  tsuMsg('好，白棋正在挣扎。继续紧气！还剩 ' + TSU.remaining + ' 手机会。', '');
+  tsuMsg(t('好，白棋正在挣扎。继续紧气！还剩 {n} 手机会。', { n: TSU.remaining }), '');
 }
 
 /* 标记本题完成；如果全部做完就弹出「完成」 */
@@ -1405,10 +1406,11 @@ function tsuMarkSolved(word) {
   TSU.done[TSU.idx] = 1;
   tsuUpdateList();
   if (tsuAllDone()) {
-    tsuMsg(word + '全部 ' + PROBLEMS.length + ' 道题都做完了 —— 太棒了！', 'ok');
+    tsuMsg(word + t('全部 {n} 道题都做完了 —— 太棒了！', { n: PROBLEMS.length }), 'ok');
     setTimeout(tsuShowDone, 900);
   } else {
-    tsuMsg(word + '还剩 ' + (PROBLEMS.length - Object.keys(TSU.done).length) + ' 道题，点「下一题」继续。', 'ok');
+    tsuMsg(word + t('还剩 {n} 道题，点「下一题」继续。',
+      { n: PROBLEMS.length - Object.keys(TSU.done).length }), 'ok');
   }
 }
 
@@ -1430,8 +1432,8 @@ function tsuUpdateList() {
   var n = Object.keys(TSU.done).length;
   document.getElementById('tsuBar').style.width = (n / PROBLEMS.length * 100) + '%';
   document.getElementById('tsuLabel').innerHTML = (n >= PROBLEMS.length)
-    ? '🏆 全部完成 <span style="color:#8ce8b0">' + n + ' / ' + PROBLEMS.length + '</span>'
-    : '第 <span id="tsuNo">' + (TSU.idx + 1) + '</span> / ' + PROBLEMS.length + ' 题';
+    ? t('🏆 全部完成 <span style="color:#8ce8b0">{n} / {total}</span>', { n: n, total: PROBLEMS.length })
+    : t('第 <span id="tsuNo">{i}</span> / {total} 题', { i: TSU.idx + 1, total: PROBLEMS.length });
 }
 
 document.getElementById('cvTsu').addEventListener('pointerdown', function (e) {
@@ -1462,7 +1464,7 @@ document.getElementById('tsuHint').onclick = function () {
   var w = p.wins && p.wins[0];
   if (!w) { tsuMsg('提示：先看看白棋还剩几口气。', 'warn'); return; }
   var letters = 'ABCDEFGHJKLMNOPQRST';
-  tsuMsg('提示：试试在 <b>' + letters[w[0]] + (9 - w[1]) + '</b> 附近落子。', 'warn');
+  tsuMsg(t('提示：试试在 <b>{pos}</b> 附近落子。', { pos: letters[w[0]] + (9 - w[1]) }), 'warn');
 };
 
 /* =====================================================================
@@ -1580,7 +1582,7 @@ function kifuBuild(moves, size, setupAB, setupAW) {
 
 function kifuLoad(text, name) {
   var parsed;
-  try { parsed = parseSGF(text); } catch (e) { alert('SGF 解析失败：' + e.message); return; }
+  try { parsed = parseSGF(text); } catch (e) { alert(t('SGF 解析失败：{msg}', { msg: e.message })); return; }
   var size = parsed.props.SZ || 19;
   if (size < 5 || size > 25) size = 19;
   var mv = parsed.moves;
@@ -1590,7 +1592,7 @@ function kifuLoad(text, name) {
   KIFU.moves = mv;
   KIFU.boards = kifuBuild(mv, size, parsed.props.AB, parsed.props.AW);
   KIFU.pos = 0;
-  KIFU.title = name || parsed.props.GN || '棋谱';
+  KIFU.title = name || parsed.props.GN || t('棋谱');
   kifuDrawer.size = size;
   kifuDrawer.cell = kifuDrawer.S / (size + 1);
   kifuDrawer.margin = kifuDrawer.cell;
@@ -1622,10 +1624,11 @@ function kifuRender() {
 function kifuUpdateUI() {
   var n = KIFU.moves.length;
   document.getElementById('kifuTitle').textContent = KIFU.title;
-  var info = KIFU.size + ' 路 · 共 ' + n + ' 手';
+  var info = t('{size} 路 · 共 {n} 手', { size: KIFU.size, n: n });
   if (KIFU.pos > 0) {
     var mv = KIFU.moves[KIFU.pos - 1];
-    info += ' · 当前第 ' + KIFU.pos + ' 手（' + ((KIFU.pos - 1) % 2 === 0 ? '黑' : '白') + '）';
+    info += ' · ' + t('当前第 {i} 手（{color}）',
+      { i: KIFU.pos, color: ((KIFU.pos - 1) % 2 === 0 ? '黑' : '白') });
   } else {
     info += ' · 开局';
   }
@@ -1633,12 +1636,13 @@ function kifuUpdateUI() {
 
   var box = document.getElementById('kList');
   box.innerHTML = '';
-  if (!n) { box.textContent = '（还没有载入棋谱）'; return; }
+  if (!n) { box.textContent = t('（还没有载入棋谱）'); return; }
   var letters = 'ABCDEFGHJKLMNOPQRST';
   for (var i = 0; i < n; i++) {
     var v = KIFU.moves[i].v;
     var p = v ? sgfToXY(v) : null;
-    var txt = (i + 1) + '. ' + ((i % 2 === 0) ? '黑' : '白') + (p ? ' ' + letters[p[0]] + (KIFU.size - p[1]) : ' 虚手');
+    var txt = (i + 1) + '. ' + ((i % 2 === 0) ? '黑' : '白') +
+              (p ? ' ' + letters[p[0]] + (KIFU.size - p[1]) : ' ' + '虚手');
     var sp = document.createElement('span');
     sp.textContent = txt;
     sp.className = (i + 1 === KIFU.pos) ? 'cur' : '';
@@ -1714,7 +1718,7 @@ drop.addEventListener('drop', function (e) {
 (function () {
   var box = document.getElementById('kSamples');
   var b = document.createElement('button');
-  b.textContent = '电脑自战一局（9 路 · 78 手）';
+  b.textContent = t('电脑自战一局（9 路 · 78 手）');
   b.onclick = function () { kifuLoad(SAMPLE_SGF, '电脑自战（9 路）'); };
   box.appendChild(b);
 })();

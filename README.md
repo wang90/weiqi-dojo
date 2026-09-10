@@ -1,6 +1,10 @@
 # 围棋练习盘 · Weiqi Dojo
 
+**[English → README.en.md](README.en.md)**
+
 **[在线使用 → https://wang90.github.io/weiqi-dojo/](https://wang90.github.io/weiqi-dojo/)**
+
+支持 **中文 · English · 日本語 · 한국어** 四种界面语言，点右上角切换。
 
 一个**纯静态、零依赖、可离线使用**的围棋学习网站。打开浏览器就能下棋、做题、打谱，不需要安装任何东西，也不需要服务器。
 
@@ -66,12 +70,40 @@ git push -u origin main
 
 访问地址：`https://<你的用户名>.github.io/<仓库名>/`
 
+## 修改译文
+
+译文源文件在项目根目录的 `i18n/` 下：
+
+| 文件 | 内容 |
+|---|---|
+| `i18n/core.js` | 基础设施（翻译函数、DOM 替换、语言切换） |
+| `i18n/board.js` | 对弈页词条 |
+| `i18n/practice.js` | 死活题 / 打谱页词条 |
+| `i18n/tutorial-text.py` | 教程页 124 个段落的译文 |
+| `i18n/extra.js` | 页面标题等零散词条 |
+
+改完执行：
+
+```bash
+python3 sync-site.py     # 会自动重建 i18n.js 并同步到 go-site/
+cd go-site && git add -A && git commit -m "更新译文" && git push
+```
+
+**检查有没有漏翻**：
+
+```bash
+node i18n/dump-keys.js   # 导出词条清单
+python3 i18n/verify.py   # 静态模拟翻译流程，报告漏翻的中文
+```
+
 ## 文件结构
 
 ```
 index.html          对弈页（首页）
 go-practice.html    死活题 + 打谱
 go-tutorial.html    入门教程
+i18n.js             界面翻译（中 / 英 / 日 / 韩）
+README.en.md        English README
 favicon.svg         站点图标
 .nojekyll           告诉 GitHub Pages 不要用 Jekyll 处理
 ```

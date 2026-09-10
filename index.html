@@ -244,6 +244,7 @@
   </div>
 </div>
 
+<script src="i18n.js"></script>
 <script>
 /* ===================================================================
    1. 基础常量与工具
@@ -1038,7 +1039,7 @@ function analyzeMove(pre, color, x, y, res, after) {
   function con(s) { if (cons.indexOf(s) < 0) cons.push(s); }
 
   /* 优点 */
-  if (capN > 0) pro('提掉对方 ' + capN + ' 子');
+  if (capN > 0) pro(t('提掉对方 {n} 子', { n: capN }));
 
   var rescued = 0, ataried = 0, conn = 0;
   forEachNeighbor(x, y, size, function (ax, ay) {
@@ -1107,15 +1108,15 @@ function analyzeMove(pre, color, x, y, res, after) {
   }
 
   var risk = atariRisk(after, size, color);
-  if (risk >= 2) con('小心！对方下一手能吃掉你 ' + risk + ' 子');
+  if (risk >= 2) con(t('小心！对方下一手能吃掉你 {n} 子', { n: risk }));
 
   /* 错失的机会 */
   if (best && gap > 40) {
     if (best.res.captured.length > 0 && capN === 0) {
-      con('其实下在 ' + coachCoord(best.x) + (size - best.y) +
-          ' 可以提掉对方 ' + best.res.captured.length + ' 子');
+      con(t('其实下在 {pos} 可以提掉对方 {n} 子',
+            { pos: coachCoord(best.x) + (size - best.y), n: best.res.captured.length }));
     } else if (cons.length < 3) {
-      con('换个地方下在 ' + coachCoord(best.x) + (size - best.y) + ' 会更好');
+      con(t('换个地方下在 {pos} 会更好', { pos: coachCoord(best.x) + (size - best.y) }));
     }
   }
 
@@ -1132,12 +1133,12 @@ function renderCoach(a) {
 
   var html = '';
   if (a.pros.length) {
-    html += '<div class="c-row"><span class="c-k c-pro">优点</span><span class="c-v">' +
-            a.pros.join('<br>') + '</span></div>';
+    html += '<div class="c-row"><span class="c-k c-pro">' + t('优点') +
+            '</span><span class="c-v">' + a.pros.join('<br>') + '</span></div>';
   }
   if (a.cons.length) {
-    html += '<div class="c-row"><span class="c-k c-con">缺点</span><span class="c-v">' +
-            a.cons.join('<br>') + '</span></div>';
+    html += '<div class="c-row"><span class="c-k c-con">' + t('缺点') +
+            '</span><span class="c-v">' + a.cons.join('<br>') + '</span></div>';
   }
   if (!html) {
     html = '<div class="c-row"><span class="c-v">这步棋没有明显问题，不过别处可能有更好的点。</span></div>';
@@ -1469,10 +1470,10 @@ function updateUI() {
   } else if (aiThinking) {
     turnLabel.innerHTML = '电脑思考中<span class="thinking">…</span>';
   } else {
-    var t = isBlack ? '黑棋落子' : '白棋落子';
-    if (mode === 'ai' && !isBlack) t += '（电脑）';
-    if (game.handicap > 0) t += ' · 让' + game.handicap + '子';
-    turnLabel.textContent = t;
+    var lbl = isBlack ? '黑棋落子' : '白棋落子';
+    if (mode === 'ai' && !isBlack) lbl += '（电脑）';
+    if (game.handicap > 0) lbl += ' · ' + t('让{n}子', { n: game.handicap });
+    turnLabel.textContent = lbl;
   }
   capB.textContent = game.captures[BLACK];
   capW.textContent = game.captures[WHITE];
@@ -1746,18 +1747,18 @@ function finishGame(reason) {
   if (mode === 'ai') {
     if (blackWins) {
       icon = '🎉'; title = '恭喜！你赢了'; cls = 'modal-title win';
-      sub = '黑棋（你）赢了 ' + Math.abs(diff).toFixed(1) + ' 目，太棒了！';
+      sub = t('黑棋（你）赢了 {n} 目，太棒了！', { n: Math.abs(diff).toFixed(1) });
     } else {
       icon = '💪'; title = '这局电脑赢了'; cls = 'modal-title lose';
-      sub = '白棋（电脑）赢了 ' + Math.abs(diff).toFixed(1) + ' 目。别灰心，再来一局试试！';
+      sub = t('白棋（电脑）赢了 {n} 目。别灰心，再来一局试试！', { n: Math.abs(diff).toFixed(1) });
     }
   } else {
     if (blackWins) {
       icon = '⚫'; title = '黑棋胜'; cls = 'modal-title win';
-      sub = '黑棋赢了 ' + Math.abs(diff).toFixed(1) + ' 目。';
+      sub = t('黑棋赢了 {n} 目。', { n: Math.abs(diff).toFixed(1) });
     } else if (diff < 0) {
       icon = '⚪'; title = '白棋胜'; cls = 'modal-title win';
-      sub = '白棋赢了 ' + Math.abs(diff).toFixed(1) + ' 目。';
+      sub = t('白棋赢了 {n} 目。', { n: Math.abs(diff).toFixed(1) });
     } else {
       icon = '🤝'; title = '和棋'; cls = 'modal-title';
       sub = '双方目数相同。';
@@ -1769,9 +1770,11 @@ function finishGame(reason) {
   modalTitle.className = cls;
   modalSub.textContent = sub;
   modalDet.innerHTML =
-    '结束原因：' + reason + '<br>' +
-    '黑棋：' + sc.blackStones + ' 子 + ' + sc.blackTerr + ' 目 = <b>' + sc.black.toFixed(1) + '</b><br>' +
-    '白棋：' + sc.whiteStones + ' 子 + ' + sc.whiteTerr + ' 目 + 贴目 ' + KOMI + ' = <b>' + sc.white.toFixed(1) + '</b>';
+    t('结束原因：{reason}', { reason: t(reason) }) + '<br>' +
+    t('黑棋：{s} 子 + {t} 目 = <b>{total}</b>',
+      { s: sc.blackStones, t: sc.blackTerr, total: sc.black.toFixed(1) }) + '<br>' +
+    t('白棋：{s} 子 + {t} 目 + 贴目 {komi} = <b>{total}</b>',
+      { s: sc.whiteStones, t: sc.whiteTerr, komi: KOMI, total: sc.white.toFixed(1) });
 
   modal.classList.add('show');
 }
