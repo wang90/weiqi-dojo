@@ -249,6 +249,21 @@
    1. 基础常量与工具
    =================================================================== */
 var EMPTY = 0, BLACK = 1, WHITE = 2;
+
+/* ---- 本地存储：记住用户上次用的棋盘路数 ---- */
+var LS_KEY = 'weiqi.boardSize';
+
+function loadSavedSize() {
+  try {
+    var v = parseInt(localStorage.getItem(LS_KEY), 10);
+    if (v === 9 || v === 13 || v === 19) return v;
+  } catch (e) {}
+  return 9;                       /* 没有记录时默认 9 路 */
+}
+
+function saveSize(v) {
+  try { localStorage.setItem(LS_KEY, String(v)); } catch (e) {}
+}
 var KOMI = 6.5;
 var STARS = {
   9:  [[2,2],[2,6],[6,2],[6,6],[4,4]],
@@ -1194,7 +1209,7 @@ var canvas = document.getElementById('board');
 var ctx = canvas.getContext('2d');
 var boardWrap = document.getElementById('boardWrap');
 
-var game = new Game(9);
+var game = new Game(loadSavedSize());
 var mode = 'ai';
 var handicap = 0;
 var levelKey = 'normal';
@@ -1632,7 +1647,9 @@ document.getElementById('sizes').addEventListener('click', function (e) {
   for (var i = 0; i < all.length; i++) all[i].classList.toggle('on', all[i] === btn);
   clearTimeout(aiTimer);
   aiThinking = false;
-  game = new Game(parseInt(btn.dataset.size, 10));
+  var newSize = parseInt(btn.dataset.size, 10);
+  saveSize(newSize);
+  game = new Game(newSize);
   if (handicap > 0) game.setupHandicap(handicap);
   hover = null;
   resizeCanvas();
@@ -1777,6 +1794,12 @@ window.addEventListener('resize', resizeCanvas);
 window.addEventListener('orientationchange', function () { setTimeout(resizeCanvas, 200); });
 
 requestAnimationFrame(function () {
+  /* 把顶部路数按钮的高亮同步成上次记住的路数 */
+  var saved = loadSavedSize();
+  var btns = document.querySelectorAll('#sizes button');
+  for (var i = 0; i < btns.length; i++) {
+    btns[i].classList.toggle('on', parseInt(btns[i].dataset.size, 10) === saved);
+  }
   computeMetrics();
   resizeCanvas();
   updateUI();
