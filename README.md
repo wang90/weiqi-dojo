@@ -1,4 +1,6 @@
-# 围棋练习盘
+# 围棋练习盘 · Weiqi Dojo
+
+**[在线使用 → https://wang90.github.io/weiqi-dojo/](https://wang90.github.io/weiqi-dojo/)**
 
 一个**纯静态、零依赖、可离线使用**的围棋学习网站。打开浏览器就能下棋、做题、打谱，不需要安装任何东西，也不需要服务器。
 
