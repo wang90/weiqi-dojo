@@ -685,12 +685,15 @@ var GoAI = (function () {
     return evaluate(board, t);
   }
 
-  function search(board2d, size, color, legal, timeMs, topN, pinfo) {
+  /* 每片最多占用主线程这么久，然后让出 —— 保证点击不卡 */
+  var SLICE_MS = 12;
+
+  function search(board2d, size, color, legal, timeMs, topN, pinfo, done, cancel) {
     var t = tables(size);
     ensureBuf(t.n);
 
     var n = legal.length;
-    if (n === 1) return legal[0];
+    if (n === 1) { done(legal[0]); return; }
 
     var flat = flatOf(board2d, size);
     var visits = new Int32Array(n);
@@ -707,11 +710,22 @@ var GoAI = (function () {
 
     var maxSteps = t.n * 3 + 60;
     var deadline = performance.now() + timeMs;
-    var total = 0, next = 0, guard = 0;
+    var total = 0, next = 0;
 
-    while (true) {
-      if ((guard++ & 15) === 0 && performance.now() > deadline) break;
+    function finish() {
+      if (cancel && cancel()) return;
+      var idxs = [];
+      for (var z = 0; z < n; z++) idxs.push(z);
+      idxs.sort(function (a, b) {
+        if (visits[b] !== visits[a]) return visits[b] - visits[a];
+        var va = sumScore[a] / (visits[a] || 1), vb = sumScore[b] / (visits[b] || 1);
+        return vb - va;
+      });
+      var kk = Math.min(topN || 1, idxs.length);
+      done(legal[idxs[Math.floor(Math.random() * kk)]]);
+    }
 
+    function onePlayout() {
       var pick;
       if (next < n) {
         pick = order[next++];
@@ -741,16 +755,19 @@ var GoAI = (function () {
       total++;
     }
 
-    var idxs = [];
-    for (var z = 0; z < n; z++) idxs.push(z);
-    idxs.sort(function (a, b) {
-      if (visits[b] !== visits[a]) return visits[b] - visits[a];
-      var va = sumScore[a] / (visits[a] || 1), vb = sumScore[b] / (visits[b] || 1);
-      return vb - va;
-    });
-    var kk = Math.min(topN || 1, idxs.length);
-    var chosen = idxs[Math.floor(Math.random() * kk)];
-    return legal[chosen];
+    /* 分片跑：一片算一小会儿就 return，让浏览器处理事件、重绘 */
+    function slice() {
+      if (cancel && cancel()) return;            /* 这盘已作废，直接放弃，别再耗 CPU */
+      var sliceEnd = performance.now() + SLICE_MS;
+      while (performance.now() < sliceEnd) {
+        if (performance.now() >= deadline) { finish(); return; }
+        onePlayout();
+      }
+      if (cancel && cancel()) return;
+      if (performance.now() >= deadline) { finish(); return; }
+      setTimeout(slice, 0);
+    }
+    slice();
   }
 
   return { tables: tables, search: search, isEyeLike: isEyeLike };
@@ -851,7 +868,7 @@ function evaluateMove(g, color, x, y, res) {
   return s;
 }
 
-function aiChooseMove(g, levelKey) {
+function aiChooseMove(g, levelKey, done, cancel) {
   var size = g.size;
   var color = g.turn;
   var board = g.board;
@@ -877,9 +894,10 @@ function aiChooseMove(g, levelKey) {
 
   if (stones === 0) {
     var c = Math.floor(size / 2);
-    return { x: c, y: c };
+    done({ x: c, y: c });
+    return;
   }
-  if (cand.size === 0) return null;
+  if (cand.size === 0) { done(null); return; }
 
   var t = GoAI.tables(size);
   var flat = flatOf(board, size);
@@ -894,8 +912,8 @@ function aiChooseMove(g, levelKey) {
     legal.push({ x: px, y: py, res: res });
   });
 
-  if (legal.length === 0) return null;
-  if (legal.length === 1) return { x: legal[0].x, y: legal[0].y };
+  if (legal.length === 0) { done(null); return; }
+  if (legal.length === 1) { done({ x: legal[0].x, y: legal[0].y }); return; }
 
   var i, j;
 
@@ -936,18 +954,20 @@ function aiChooseMove(g, levelKey) {
     poolPriors.push(span > 0 ? (h[pool[i]] - hmin) / span : 0.5);
   }
 
-  if (poolLegal.length === 1) return poolLegal[0];
+  if (poolLegal.length === 1) { done({ x: poolLegal[0].x, y: poolLegal[0].y }); return; }
 
-  /* --- 第四步：在候选池里做搜索，由全局推演定夺 --- */
-  var pick = GoAI.search(board, size, color, poolLegal, lv.time, 1,
-                         { p: Float64Array.from(poolPriors), w: lv.prior, wv: lv.wv });
-
-  /* 低棋力：偶尔走一步池内的次优着（不会走出明显坏棋，只是不够精） */
-  if (lv.blunder > 0 && poolLegal.length > 1 && Math.random() < lv.blunder) {
-    var alt = poolLegal[1 + Math.floor(Math.random() * (poolLegal.length - 1))];
-    return { x: alt.x, y: alt.y };
-  }
-  return { x: pick.x, y: pick.y };
+  /* --- 第四步：在候选池里做搜索，由全局推演定夺（分片执行，不阻塞界面） --- */
+  GoAI.search(board, size, color, poolLegal, lv.time, 1,
+              { p: Float64Array.from(poolPriors), w: lv.prior, wv: lv.wv },
+              function (pick) {
+    /* 低棋力：偶尔走一步池内的次优着（不会走出明显坏棋，只是不够精） */
+    if (lv.blunder > 0 && poolLegal.length > 1 && Math.random() < lv.blunder) {
+      var alt = poolLegal[1 + Math.floor(Math.random() * (poolLegal.length - 1))];
+      done({ x: alt.x, y: alt.y });
+      return;
+    }
+    done({ x: pick.x, y: pick.y });
+  }, cancel);
 }
 
 /* 落子后，自己有几块棋处于打吃状态（返回最大块的子数） */
@@ -986,7 +1006,7 @@ function isKoHash(pre, h) {
 
 function analyzeMove(pre, color, x, y, res, after) {
   var size = pre.size;
-  var t = GoAI.tables(size);
+  var tb = GoAI.tables(size);
   var flat = flatOf(pre.board, size);
   var opp = 3 - color;
   var yy, xx, dy, dx, ny, nx;
@@ -1017,7 +1037,7 @@ function analyzeMove(pre, color, x, y, res, after) {
     var r = tryPlay(pre.board, size, px, py, color);
     if (!r.ok) return;
     if (isKoHash(pre, hashBoard(r.board, size))) return;
-    if (r.captured.length === 0 && GoAI.isEyeLike(flat, t, key, color)) return;
+    if (r.captured.length === 0 && GoAI.isEyeLike(flat, tb, key, color)) return;
     var sc = evaluateMove(pre, color, px, py, r);
     var item = { x: px, y: py, score: sc, res: r };
     if (!best || sc > best.score) best = item;
@@ -1523,6 +1543,7 @@ function updateUI() {
 function startGame() {
   clearTimeout(aiTimer);
   aiThinking = false;
+  aiGen++;                       /* 作废还在跑的旧计算 */
   game = new Game(game.size);
   if (handicap > 0) game.setupHandicap(handicap);
   hover = null;
@@ -1551,35 +1572,47 @@ function playClick(capture) {
   } catch (e) {}
 }
 
+/* 每次新对局 / 悔棋 / 换棋盘，代号 +1，作废还在跑的旧计算 */
+var aiGen = 0;
+
 function scheduleAi() {
   clearTimeout(aiTimer);
-  if (mode !== 'ai' || game.over || game.turn !== WHITE) return;
+  aiThinking = false;
+  if (mode !== 'ai' || game.over || game.turn !== WHITE) { updateUI(); return; }
+
+  var myGen = ++aiGen;
 
   aiTimer = setTimeout(function () {
-    if (mode !== 'ai' || game.over || game.turn !== WHITE) return;
-    aiThinking = true;
+    if (myGen !== aiGen) return;
+    if (mode !== 'ai' || game.over || game.turn !== WHITE) { updateUI(); return; }
+
+    aiThinking = true;                 /* 思考期间点击一律忽略 */
     updateUI();
 
-    /* 先让浏览器把"思考中"渲染出来，再跑搜索 */
+    /* 先让浏览器把「思考中」渲染出来，再开始算 */
     requestAnimationFrame(function () {
       setTimeout(function () {
-        if (mode !== 'ai' || game.over || game.turn !== WHITE) { aiThinking = false; return; }
-        var res = null;
-        try {
-          var mv = aiChooseMove(game, levelKey);
-          res = mv ? game.play(mv.x, mv.y) : game.pass();
-        } catch (err) {
-          console.error(err);
-          res = game.pass();
-        }
-        aiThinking = false;
-        if (res && res.ok) playClick(res.captured > 0);
-        render();
-        updateUI();
-        if (game.over) finishGame('双方连续虚手');
-      }, 30);
+        if (myGen !== aiGen) return;
+        if (mode !== 'ai' || game.over || game.turn !== WHITE) { aiThinking = false; updateUI(); return; }
+
+        aiChooseMove(game, levelKey, function (mv) {
+          if (myGen !== aiGen) return;           /* 这盘已经作废了 */
+          var res = null;
+          try {
+            res = mv ? game.play(mv.x, mv.y) : game.pass();
+          } catch (err) {
+            console.error(err);
+            res = game.pass();
+          }
+          aiThinking = false;
+          if (res && res.ok) playClick(res.captured > 0);
+          render();
+          updateUI();
+          if (game.over) finishGame('双方连续虚手');
+        }, function () { return myGen !== aiGen; });
+      }, 24);
     });
-  }, 240);
+  }, 220);
 }
 
 function humanPlay(x, y) {
@@ -1613,6 +1646,7 @@ function humanPlay(x, y) {
 
 canvas.addEventListener('pointerdown', function (e) {
   e.preventDefault();
+  if (aiThinking) return;                       /* 电脑思考期间不响应，避免点击积压后爆发 */
   if (game.over) { toast('对局结束了，点「重新开始」吧'); return; }
   if (mode === 'ai' && game.turn === WHITE) return;
   var rect = canvas.getBoundingClientRect();
@@ -1625,6 +1659,7 @@ canvas.addEventListener('pointerdown', function (e) {
 });
 
 canvas.addEventListener('pointermove', function (e) {
+  if (aiThinking) return;
   var rect = canvas.getBoundingClientRect();
   var px = e.clientX - rect.left;
   var py = e.clientY - rect.top;
@@ -1648,6 +1683,7 @@ document.getElementById('sizes').addEventListener('click', function (e) {
   for (var i = 0; i < all.length; i++) all[i].classList.toggle('on', all[i] === btn);
   clearTimeout(aiTimer);
   aiThinking = false;
+  aiGen++;
   var newSize = parseInt(btn.dataset.size, 10);
   saveSize(newSize);
   game = new Game(newSize);
@@ -1661,6 +1697,7 @@ document.getElementById('sizes').addEventListener('click', function (e) {
 btnUndo.addEventListener('click', function () {
   clearTimeout(aiTimer);
   aiThinking = false;
+  aiGen++;
   if (!game.history.length) { toast('还没有可悔的棋'); return; }
   game.undo();
   if (mode === 'ai') {
@@ -1722,6 +1759,7 @@ for (var mi = 0; mi < modeRadios.length; mi++) {
     mode = this.value;
     clearTimeout(aiTimer);
     aiThinking = false;
+    aiGen++;
     hzHint.textContent = mode === 'ai'
       ? '让子数越多，电脑越吃力。9 路建议让 3～5 子。'
       : '双人模式下，白棋先走（黑方已摆让子）。';
