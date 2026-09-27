@@ -72,8 +72,6 @@ git push -u origin main
 
 ## 修改译文
 
-译文源文件在项目根目录的 `i18n/` 下：
-
 | 文件 | 内容 |
 |---|---|
 | `i18n/core.js` | 基础设施（翻译函数、DOM 替换、语言切换） |
@@ -85,15 +83,19 @@ git push -u origin main
 改完执行：
 
 ```bash
-python3 sync-site.py     # 会自动重建 i18n.js 并同步到 go-site/
-cd go-site && git add -A && git commit -m "更新译文" && git push
+python3 i18n/build.py     # 重建 i18n.js
+python3 i18n/verify.py    # 检查有没有漏翻的中文
+git add -A && git commit -m "更新译文" && git push
 ```
 
-**检查有没有漏翻**：
+`i18n/verify.py` 会按 JS 里完全相同的遍历逻辑静态模拟一遍，报告没被翻译的中文。需要先跑一次 `node i18n/dump-keys.js` 导出词条清单。
+
+## 回归测试
 
 ```bash
-node i18n/dump-keys.js   # 导出词条清单
-python3 i18n/verify.py   # 静态模拟翻译流程，报告漏翻的中文
+node test/perf.js    # AI 思考时主线程最长阻塞（防卡顿）
+node test/ai.js      # 棋力回归：吃子 / 逃打吃 / 不填眼 / 合法着法
+node test/flow.js    # 页面流程：落子 → 电脑回应、思考中连点、重开作废旧计算
 ```
 
 ## 文件结构
@@ -102,10 +104,14 @@ python3 i18n/verify.py   # 静态模拟翻译流程，报告漏翻的中文
 index.html          对弈页（首页）
 go-practice.html    死活题 + 打谱
 go-tutorial.html    入门教程
-i18n.js             界面翻译（中 / 英 / 日 / 韩）
+i18n.js             界面翻译（构建产物，由 i18n/ 生成）
+i18n/               译文源 + 构建 / 校验脚本
+test/               回归测试
+README.md           中文说明（本文件）
 README.en.md        English README
 favicon.svg         站点图标
 .nojekyll           告诉 GitHub Pages 不要用 Jekyll 处理
+LICENSE             MIT
 ```
 
 ## 技术说明

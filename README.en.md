@@ -76,9 +76,42 @@ Your site will be at `https://<your-name>.github.io/<repo>/`
 index.html          Play page (site entry point)
 go-practice.html    Life & death problems + SGF records
 go-tutorial.html    Beginner tutorial
-i18n.js             Translations (zh / en / ja / ko)
+i18n.js             Translations — build artifact, generated from i18n/
+i18n/               Translation sources + build / verify scripts
+test/               Regression tests
+README.md           中文说明
+README.en.md        This file
 favicon.svg         Site icon
 .nojekyll           Tells GitHub Pages to skip Jekyll
+LICENSE             MIT
+```
+
+## Editing translations
+
+| File | Contents |
+|---|---|
+| `i18n/core.js` | Infrastructure (translate function, DOM walker, language switcher) |
+| `i18n/board.js` | Play page strings |
+| `i18n/practice.js` | Problems + SGF page strings |
+| `i18n/tutorial-text.py` | The tutorial's 124 translated paragraphs |
+| `i18n/extra.js` | Page titles and misc strings |
+
+After editing:
+
+```bash
+python3 i18n/build.py     # rebuild i18n.js
+python3 i18n/verify.py    # list any Chinese text still untranslated
+git add -A && git commit -m "update translations" && git push
+```
+
+`verify.py` replays exactly the same traversal logic as the browser code, so it reports anything that would be left untranslated. Run `node i18n/dump-keys.js` once beforehand to export the key list.
+
+## Regression tests
+
+```bash
+node test/perf.js    # longest main-thread block while the AI thinks
+node test/ai.js      # playing strength: capture / escape atari / avoid eye-filling
+node test/flow.js    # full flow: move -> reply, rapid clicking, cancelling stale searches
 ```
 
 ## How it works
