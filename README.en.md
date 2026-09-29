@@ -21,6 +21,9 @@ Originally written for parents who are teaching their kids from scratch.
   - Cons: *On the first line — barely encloses any territory* / **Careful! Your opponent can capture 3 of your stones next move** / *Actually E4 would capture a stone*
 - **Complete rules**: captures, no suicide, ko — all implemented correctly
 - **Automatic scoring**: counts the board at the end and shows the result (komi 6.5)
+- **Score estimate**: tap "Score estimate" to see the current count and territory marked on the board; midgame estimates are approximate, so dead stones should be captured first
+- **Computer auto-resign**: in the late game, if the computer judges itself clearly behind and the position is largely settled, it resigns instead of thinking on
+- **Move timer**: shows the current move time, previous move time, per-move history, and total game time
 - **Remembers your board size** between visits (stored locally in your browser, nothing is uploaded)
 
 ### Life & Death problems

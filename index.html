@@ -55,7 +55,23 @@
   .btns button:active{transform:scale(.96)}
   .btns button:disabled{opacity:.35;cursor:not-allowed}
   #btnEnd{background:rgba(120,220,160,.14);border-color:rgba(120,220,160,.28)}
-  #btnReset{background:rgba(255,140,120,.14);border-color:rgba(255,140,120,.25)}
+  #btnCount{background:rgba(127,215,255,.14);border-color:rgba(127,215,255,.28)}
+  #btnCount.on{background:#7fd7ff;color:#062430;border-color:#7fd7ff;
+    box-shadow:0 2px 10px rgba(127,215,255,.35)}
+  #btnReset{grid-column:1/-1;background:rgba(255,140,120,.14);border-color:rgba(255,140,120,.25)}
+  .count-line{display:flex;align-items:center;gap:8px;font-size:13.5px;color:#b9c9d8;padding:4px 0}
+  .count-line .dot{width:12px;height:12px;border-radius:50%;display:inline-block;flex:0 0 auto}
+  .count-line .dot.b{background:radial-gradient(circle at 34% 30%,#6d6d6d,#111)}
+  .count-line .dot.w{background:radial-gradient(circle at 34% 30%,#fff,#cbc4b6)}
+  .count-line b{margin-left:auto;color:#f3e4c3;font-size:15px}
+  .count-diff{margin-top:6px;padding-top:8px;border-top:1px solid rgba(255,255,255,.08);
+    font-size:14px;font-weight:800;color:#f3e4c3;text-align:center}
+  .time-row{display:flex;align-items:center;gap:8px;font-size:13px;color:#b9c9d8;padding:3px 0}
+  .time-row b{margin-left:auto;color:#f3e4c3;font-size:14px;font-variant-numeric:tabular-nums}
+  .move-times{max-height:112px;overflow-y:auto;margin-top:5px;padding-top:5px;
+    border-top:1px solid rgba(255,255,255,.07)}
+  .move-time-row{display:flex;align-items:center;font-size:12px;color:#9fb3c8;padding:2px 0}
+  .move-time-row b{margin-left:auto;color:#cfdcea;font-weight:700;font-variant-numeric:tabular-nums}
   .lbl{font-size:12px;color:#8ea3b7;margin-bottom:8px;font-weight:700;letter-spacing:.5px}
   .radio{display:flex;align-items:center;gap:8px;font-size:14px;padding:7px 0;cursor:pointer;color:#cfdcea}
   .radio input{accent-color:#f0c060;width:16px;height:16px}
@@ -193,9 +209,27 @@
       <div class="row">总手数<b id="moveNo">0</b></div>
     </div>
 
+    <div class="card">
+      <div class="lbl">用时</div>
+      <div class="time-row"><span>本手</span><b id="turnTime">00:00</b></div>
+      <div class="time-row"><span>上一步</span><b id="lastMoveTime">—</b></div>
+      <div class="time-row"><span>总用时</span><b id="totalTime">00:00</b></div>
+      <div class="lbl" style="margin:9px 0 1px">每步耗时</div>
+      <div class="move-times" id="moveTimes"></div>
+    </div>
+
+    <div class="card" id="countCard" style="display:none">
+      <div class="lbl">当前点目</div>
+      <div class="count-line"><span class="dot b"></span>黑棋<b id="countBlack">—</b></div>
+      <div class="count-line"><span class="dot w"></span>白棋<b id="countWhite">—</b></div>
+      <div class="count-diff" id="countDiff"></div>
+      <div class="hint">按中国规则估算：棋子 + 围住的空点，白棋含贴目 6.5。中盘仅供参考，死子请自行提掉。</div>
+    </div>
+
     <div class="card btns">
       <button id="btnUndo">悔棋</button>
       <button id="btnPass">虚手</button>
+      <button id="btnCount">点目</button>
       <button id="btnEnd">结束数子</button>
       <button id="btnReset">重新开始</button>
     </div>
@@ -1188,37 +1222,43 @@ function scorePosition(board, size) {
       else if (board[y][x] === WHITE) ws++;
     }
   }
-  var seen = [];
-  for (y = 0; y < size; y++) {
-    var row = [];
-    for (x = 0; x < size; x++) row.push(false);
-    seen.push(row);
-  }
+  var n = size * size;
+  var seen = new Uint8Array(n);
+  var owner = new Uint8Array(n);
   var bt = 0, wt = 0;
   for (y = 0; y < size; y++) {
     for (x = 0; x < size; x++) {
-      if (board[y][x] !== EMPTY || seen[y][x]) continue;
+      var start = y * size + x;
+      if (board[y][x] !== EMPTY || seen[start]) continue;
       var stack = [[x, y]];
-      seen[y][x] = true;
-      var count = 0, touchB = false, touchW = false;
+      seen[start] = 1;
+      var pts = [], count = 0, touchB = false, touchW = false;
       while (stack.length) {
         var p = stack.pop();
         count++;
+        pts.push(p);
         forEachNeighbor(p[0], p[1], size, function (nx, ny) {
+          var ni = ny * size + nx;
           if (board[ny][nx] === EMPTY) {
-            if (!seen[ny][nx]) { seen[ny][nx] = true; stack.push([nx, ny]); }
+            if (!seen[ni]) { seen[ni] = 1; stack.push([nx, ny]); }
           } else if (board[ny][nx] === BLACK) touchB = true;
           else touchW = true;
         });
       }
-      if (touchB && !touchW) bt += count;
-      else if (touchW && !touchB) wt += count;
+      if (touchB && !touchW) {
+        bt += count;
+        for (var kb = 0; kb < pts.length; kb++) owner[pts[kb][1] * size + pts[kb][0]] = BLACK;
+      } else if (touchW && !touchB) {
+        wt += count;
+        for (var kw = 0; kw < pts.length; kw++) owner[pts[kw][1] * size + pts[kw][0]] = WHITE;
+      }
     }
   }
   var blackScore = bs + bt;
   var whiteScore = ws + wt + KOMI;
   return {
     blackStones: bs, whiteStones: ws, blackTerr: bt, whiteTerr: wt,
+    owner: owner,
     black: blackScore, white: whiteScore, diff: blackScore - whiteScore
   };
 }
@@ -1367,6 +1407,33 @@ function drawStones() {
   }
 }
 
+function drawCountOverlay() {
+  if (!countVisible || !countResult || !countResult.owner) return;
+  var N = game.size, owner = countResult.owner;
+  var r = Math.max(2.5, cell * 0.18);
+  for (var y = 0; y < N; y++) {
+    for (var x = 0; x < N; x++) {
+      if (game.board[y][x] !== EMPTY) continue;
+      var v = owner[y * N + x];
+      if (!v) continue;
+      var cx = margin + x * cell, cy = margin + y * cell;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      if (v === BLACK) {
+        ctx.fillStyle = 'rgba(8,8,8,0.42)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.62)';
+      } else {
+        ctx.fillStyle = 'rgba(255,255,255,0.78)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(80,58,24,0.58)';
+      }
+      ctx.lineWidth = Math.max(1, r * 0.22);
+      ctx.stroke();
+    }
+  }
+}
+
 function drawLastMove() {
   var lm = game.lastMove;
   if (!lm) return;
@@ -1399,6 +1466,7 @@ function render() {
   drawGrid();
   drawCoordinates();
   drawStones();
+  drawCountOverlay();
   drawLastMove();
   drawHover();
 }
@@ -1456,8 +1524,22 @@ var capW       = document.getElementById('capW');
 var moveNo     = document.getElementById('moveNo');
 var btnUndo    = document.getElementById('btnUndo');
 var btnPass    = document.getElementById('btnPass');
+var btnCount   = document.getElementById('btnCount');
 var btnEnd     = document.getElementById('btnEnd');
 var btnReset   = document.getElementById('btnReset');
+var countCard  = document.getElementById('countCard');
+var countBlack = document.getElementById('countBlack');
+var countWhite = document.getElementById('countWhite');
+var countDiff  = document.getElementById('countDiff');
+var countVisible = false;
+var countResult = null;
+var turnTime   = document.getElementById('turnTime');
+var lastMoveTime = document.getElementById('lastMoveTime');
+var totalTime  = document.getElementById('totalTime');
+var moveTimesEl = document.getElementById('moveTimes');
+var clockStartAt = 0, baseElapsed = 0, turnStartedAt = 0;
+var clockRunning = false, clockTimer = null;
+var moveTimeList = [], lastMoveMs = 0;
 var msgEl      = document.getElementById('msg');
 var hzBox      = document.getElementById('hz');
 var hzHint     = document.getElementById('hzHint');
@@ -1480,6 +1562,147 @@ function toast(msg) {
   msgEl.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(function () { msgEl.classList.remove('show'); }, 2200);
+}
+
+function pad2(n) { return n < 10 ? "0" + n : String(n); }
+
+function formatClock(ms) {
+  var total = Math.max(0, Math.floor(ms / 1000));
+  var h = Math.floor(total / 3600);
+  var m = Math.floor((total % 3600) / 60);
+  var s = total % 60;
+  return h > 0 ? (h + ':' + pad2(m) + ':' + pad2(s)) : (pad2(m) + ':' + pad2(s));
+}
+
+function formatMoveTime(ms) {
+  if (ms < 10000) return (ms / 1000).toFixed(1) + "s";
+  return formatClock(ms);
+}
+
+function getTotalMs() {
+  if (clockStartAt === 0) return 0;
+  if (clockRunning) return baseElapsed + (Date.now() - clockStartAt);
+  return baseElapsed;
+}
+
+function renderMoveTimes() {
+  if (moveTimesEl == null) return;
+  var html = '';
+  for (var i = 0; i < moveTimeList.length; i++) {
+    var m = moveTimeList[i];
+    html += '<div class="move-time-row"><span>' + m.no + '. ' +
+            t(m.color === BLACK ? '黑' : '白') + '</span><b>' +
+            formatMoveTime(m.ms) + '</b></div>';
+  }
+  moveTimesEl.innerHTML = html;
+  moveTimesEl.scrollTop = moveTimesEl.scrollHeight || 0;
+}
+
+function updateClockUI() {
+  if (turnTime == null) return;
+  totalTime.textContent = formatClock(getTotalMs());
+  lastMoveTime.textContent = moveTimeList.length ? formatMoveTime(lastMoveMs) : '—';
+  var cur = (clockRunning && game.over === false && turnStartedAt) ? Date.now() - turnStartedAt : 0;
+  turnTime.textContent = formatClock(cur);
+}
+
+function startClock() {
+  if (clockTimer) clearInterval(clockTimer);
+  clockStartAt = Date.now();
+  baseElapsed = 0;
+  turnStartedAt = clockStartAt;
+  clockRunning = true;
+  moveTimeList = [];
+  lastMoveMs = 0;
+  renderMoveTimes();
+  updateClockUI();
+  clockTimer = setInterval(updateClockUI, 500);
+}
+
+function stopClock() {
+  if (clockRunning === false) return;
+  if (clockStartAt) baseElapsed += Date.now() - clockStartAt;
+  clockRunning = false;
+  if (clockTimer) { clearInterval(clockTimer); clockTimer = null; }
+  updateClockUI();
+}
+
+function resumeClock() {
+  if (clockRunning || clockStartAt === 0) return;
+  clockStartAt = Date.now();
+  clockRunning = true;
+  updateClockUI();
+  if (clockTimer === null) clockTimer = setInterval(updateClockUI, 500);
+}
+
+function recordMoveTime(color, startedAt) {
+  var ms = Math.max(0, Date.now() - startedAt);
+  lastMoveMs = ms;
+  moveTimeList.push({ no: game.moveCount, color: color, ms: ms });
+  turnStartedAt = Date.now();
+  renderMoveTimes();
+  updateClockUI();
+}
+
+function pruneMoveTimesAfterUndo() {
+  var filtered = [];
+  for (var i = 0; i < moveTimeList.length; i++) {
+    if (moveTimeList[i].no <= game.moveCount) filtered.push(moveTimeList[i]);
+  }
+  moveTimeList = filtered;
+  lastMoveMs = moveTimeList.length ? moveTimeList[moveTimeList.length - 1].ms : 0;
+  turnStartedAt = Date.now();
+  renderMoveTimes();
+  updateClockUI();
+}
+
+function updateCountUI(sc) {
+  if (!sc) return;
+  countBlack.textContent = sc.black.toFixed(1);
+  countWhite.textContent = sc.white.toFixed(1);
+  var d = sc.black - sc.white;
+  var n = Math.abs(d).toFixed(1);
+  if (Math.abs(d) < 0.25) countDiff.textContent = t('形势接近，胜负难分');
+  else if (d > 0) countDiff.textContent = t('黑棋领先 {n} 目', { n: n });
+  else countDiff.textContent = t('白棋领先 {n} 目', { n: n });
+}
+
+function refreshCount() {
+  if (!countVisible) return;
+  countResult = scorePosition(game.board, game.size);
+  updateCountUI(countResult);
+}
+
+function setCountVisible(on) {
+  countVisible = !!on;
+  btnCount.classList.toggle('on', countVisible);
+  if (countVisible) {
+    countCard.style.display = '';
+    refreshCount();
+  } else {
+    countCard.style.display = 'none';
+    countResult = null;
+  }
+  render();
+}
+
+/* 电脑认输判断：只有领先方明显领先、且棋盘基本定型时才认输，避免中盘误判 */
+function shouldAIResign() {
+  if (mode !== 'ai' || game.over || game.turn !== WHITE) return false;
+  var total = game.size * game.size;
+  if (game.moveCount < total * 0.42) return false;
+
+  var sc = scorePosition(game.board, game.size);
+  var margin = game.size <= 9 ? 18 : (game.size <= 13 ? 24 : 32);
+  if (sc.diff < margin) return false;                 /* sc.diff > 0：黑方领先 */
+
+  var stones = sc.blackStones + sc.whiteStones;
+  var occupied = stones / total;
+  var empty = total - stones;
+  var settled = empty > 0 ? (sc.blackTerr + sc.whiteTerr) / empty : 1;
+  if (occupied < (game.size >= 19 ? 0.52 : 0.46)) return false;
+  if (settled < 0.72) return false;
+  return true;
 }
 
 function updateUI() {
@@ -1544,12 +1767,14 @@ function startGame() {
   clearTimeout(aiTimer);
   aiThinking = false;
   aiGen++;                       /* 作废还在跑的旧计算 */
+  setCountVisible(false);
   game = new Game(game.size);
   if (handicap > 0) game.setupHandicap(handicap);
   hover = null;
   computeMetrics();
   render();
   updateUI();
+  startClock();
   scheduleAi();
 }
 
@@ -1579,6 +1804,7 @@ function scheduleAi() {
   clearTimeout(aiTimer);
   aiThinking = false;
   if (mode !== 'ai' || game.over || game.turn !== WHITE) { updateUI(); return; }
+  if (shouldAIResign()) { finishGame('电脑认输'); return; }
 
   var myGen = ++aiGen;
 
@@ -1597,6 +1823,8 @@ function scheduleAi() {
 
         aiChooseMove(game, levelKey, function (mv) {
           if (myGen !== aiGen) return;           /* 这盘已经作废了 */
+          var aiColor = game.turn;
+          var aiStart = turnStartedAt;
           var res = null;
           try {
             res = mv ? game.play(mv.x, mv.y) : game.pass();
@@ -1605,7 +1833,9 @@ function scheduleAi() {
             res = game.pass();
           }
           aiThinking = false;
+          if (res && res.ok) recordMoveTime(aiColor, aiStart);
           if (res && res.ok) playClick(res.captured > 0);
+          refreshCount();
           render();
           updateUI();
           if (game.over) finishGame('双方连续虚手');
@@ -1617,6 +1847,7 @@ function scheduleAi() {
 
 function humanPlay(x, y) {
   var color = game.turn;
+  var turnStart = turnStartedAt;
   /* 落子前留一份快照，给「教练点评」做对比 */
   var pre = {
     size: game.size,
@@ -1631,8 +1862,10 @@ function humanPlay(x, y) {
   var res = game.play(x, y);
   if (!res.ok) { toast(res.reason); return; }
 
+  recordMoveTime(color, turnStart);
   playClick(res.captured > 0);
   hover = null;
+  refreshCount();
   render();
   updateUI();
 
@@ -1686,10 +1919,12 @@ document.getElementById('sizes').addEventListener('click', function (e) {
   aiGen++;
   var newSize = parseInt(btn.dataset.size, 10);
   saveSize(newSize);
+  setCountVisible(false);
   game = new Game(newSize);
   if (handicap > 0) game.setupHandicap(handicap);
   hover = null;
   resizeCanvas();
+  startClock();
   updateUI();
   scheduleAi();
 });
@@ -1704,6 +1939,9 @@ btnUndo.addEventListener('click', function () {
     while (game.turn === WHITE && game.history.length) game.undo();
   }
   hover = null;
+  pruneMoveTimesAfterUndo();
+  if (game.over === false) resumeClock();
+  refreshCount();
   render();
   updateUI();
 });
@@ -1711,11 +1949,19 @@ btnUndo.addEventListener('click', function () {
 btnPass.addEventListener('click', function () {
   if (game.over) { toast('对局已结束'); return; }
   if (mode === 'ai' && game.turn === WHITE) return;
+  var passColor = game.turn;
+  var passStart = turnStartedAt;
   game.pass();
+  recordMoveTime(passColor, passStart);
+  refreshCount();
   render();
   updateUI();
   if (game.over) finishGame('双方连续虚手');
   else scheduleAi();
+});
+
+btnCount.addEventListener('click', function () {
+  setCountVisible(!countVisible);
 });
 
 btnEnd.addEventListener('click', function () {
@@ -1774,6 +2020,8 @@ for (var mi = 0; mi < modeRadios.length; mi++) {
    =================================================================== */
 function finishGame(reason) {
   game.over = true;
+  stopClock();
+  refreshCount();
   render();
   updateUI();
 
@@ -1783,7 +2031,10 @@ function finishGame(reason) {
   var icon, title, sub, cls;
 
   if (mode === 'ai') {
-    if (blackWins) {
+    if (reason === '电脑认输') {
+      icon = '🏳️'; title = '电脑认输了'; cls = 'modal-title win';
+      sub = t('电脑判断形势已落后 {n} 目，主动认输。', { n: Math.abs(diff).toFixed(1) });
+    } else if (blackWins) {
       icon = '🎉'; title = '恭喜！你赢了'; cls = 'modal-title win';
       sub = t('黑棋（你）赢了 {n} 目，太棒了！', { n: Math.abs(diff).toFixed(1) });
     } else {
@@ -1844,6 +2095,7 @@ requestAnimationFrame(function () {
   computeMetrics();
   resizeCanvas();
   updateUI();
+  startClock();
 });
 </script>
 </body>

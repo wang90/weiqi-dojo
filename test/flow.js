@@ -116,6 +116,13 @@ function click(ctx, x, y) {
   ok(G.aiThinking === false, '思考状态已复位');
 
   console.log('');
+  console.log('--- 用时 ---');
+  ok(G.moveTimeList.length === 2, '记录每手用时：人 1 手 + 电脑 1 手');
+  ok(G.moveTimeList[0].color === 1 && G.moveTimeList[1].color === 2, '每手用时颜色正确');
+  ok(/^\d{2}:\d{2}$/.test(ctx.byId['totalTime'].textContent), '总用时显示为时钟格式');
+  ok(/^\d+(\.\d+)?s$|^\d{2}:\d{2}$/.test(ctx.byId['lastMoveTime'].textContent), '上一步用时已显示');
+
+  console.log('');
   console.log('--- 思考期间快速连点 10 次 ---');
   var m2 = G.game.moveCount;
   click(ctx, 2, 2);                       /* 触发电脑思考 */
@@ -145,6 +152,45 @@ function click(ctx, x, y) {
   var afterReset = G.game.moveCount;
   await new Promise(function (r) { setTimeout(r, 1800); });
   ok(G.game.moveCount === afterReset, '重开后旧计算没有落子（手数保持 ' + G.game.moveCount + '）');
+
+  console.log('');
+  console.log('--- 点目 ---');
+  var gCount = new G.Game(9);
+  for (var cy = 0; cy < 9; cy++) for (var cx = 0; cx < 9; cx++) gCount.board[cy][cx] = 2;
+  gCount.board[0][0] = 0;   /* 左上角空点 */
+  gCount.board[1][0] = 1;   /* 黑棋围住左上角 */
+  gCount.board[0][1] = 1;
+  var scCount = G.scorePosition(gCount.board, 9);
+  ok(scCount.blackTerr === 1 && scCount.owner[0] === 1, '点目：左上角被黑棋围住，标为黑地');
+  ok(scCount.white >= 6.5, '点目：白棋含贴目 6.5');
+  var countBtn = ctx.byId['btnCount'];
+  countBtn._ls.click[0]();
+  ok(G.countVisible === true && ctx.byId['countCard'].style.display === '', '点击「点目」显示结果卡片');
+  countBtn._ls.click[0]();
+  ok(G.countVisible === false && ctx.byId['countCard'].style.display === 'none', '再次点击关闭点目');
+
+  console.log('');
+  console.log('--- 电脑自动认输 ---');
+  G.mode = 'ai';
+  var gWin = new G.Game(9);
+  gWin.moveCount = 40;
+  for (var yy = 0; yy < 9; yy++) for (var xx = 0; xx < 9; xx++) gWin.board[yy][xx] = 1;
+  gWin.board[4][4] = 2; gWin.board[4][5] = 2; gWin.board[5][4] = 2;
+  gWin.board[5][5] = 2; gWin.board[0][0] = 2;
+  gWin.turn = 2;
+  var oldGame = G.game;
+  G.game = gWin;
+  ok(G.shouldAIResign() === true, '电脑明显落后且棋盘定型时会认输');
+  G.scheduleAi();
+  ok(gWin.over === true, '电脑认输后对局结束');
+  ok(ctx.byId['modalTitle'].textContent === '电脑认输了', '弹出电脑认输提示');
+  G.game = oldGame;
+
+  var gEarly = new G.Game(9);
+  gEarly.turn = 2;
+  G.game = gEarly;
+  ok(G.shouldAIResign() === false, '开局不会误认输');
+  G.game = oldGame;
 
   console.log('');
   console.log(fails === 0 ? '★ 全部通过' : '★ ' + fails + ' 项失败');
