@@ -123,6 +123,8 @@ function click(ctx, x, y) {
   ok(/^\d+(\.\d+)?s$|^\d{2}:\d{2}$/.test(ctx.byId['lastMoveTime'].textContent), '上一步用时已显示');
   ok(ctx.byId['railMoveTimes'].innerHTML.indexOf('rail-move-row') >= 0, '棋盘边计时条显示每手用时');
   ok(/^\d{2}:\d{2}$/.test(ctx.byId['railTotalTime'].textContent), '棋盘边计时条显示总用时');
+  ok(ctx.byId['stopwatchSide'].textContent === '黑棋', '秒表跟随当前手方');
+  ok(/^\d{2}:\d{2}\.\d$/.test(ctx.byId['stopwatchTime'].textContent), '秒表显示累计用时');
 
   console.log('');
   console.log('--- 思考期间快速连点 10 次 ---');
@@ -130,6 +132,7 @@ function click(ctx, x, y) {
   click(ctx, 2, 2);                       /* 触发电脑思考 */
   await new Promise(function (r) { setTimeout(r, 300); });
   ok(G.aiThinking === true, '电脑已进入思考状态');
+  ok(ctx.byId['stopwatchSide'].textContent === '白棋', '换手后秒表切换到另一方');
   for (var i = 0; i < 10; i++) click(ctx, 6, 6);   /* 狂点 */
   await new Promise(function (r) { setTimeout(r, 1600); });
   var added = G.game.moveCount - m2;

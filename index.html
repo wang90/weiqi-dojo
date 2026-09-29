@@ -92,6 +92,21 @@
     background:linear-gradient(160deg,rgba(35,50,67,.96),rgba(19,27,37,.96));
     border:1px solid rgba(127,215,255,.28);border-radius:12px;padding:8px;
     box-shadow:0 10px 28px rgba(0,0,0,.5);pointer-events:none}
+  .stopwatch{margin-bottom:4px;padding:6px 7px;border-radius:10px;
+    background:rgba(0,0,0,.17);border:1px solid rgba(255,255,255,.06)}
+  .stopwatch-side{display:flex;align-items:center;gap:5px;font-size:11px;color:#9fb3c8;
+    font-weight:700;white-space:nowrap}
+  .sw-dot{width:7px;height:7px;border-radius:50%;background:#6b7a88;flex:0 0 auto}
+  .stopwatch.running .sw-dot{background:#ff4d4f;box-shadow:0 0 8px rgba(255,77,79,.8);
+    animation:swPulse 1s infinite}
+  @keyframes swPulse{0%,100%{opacity:1}50%{opacity:.25}}
+  .stopwatch-time{margin:2px 0 3px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:16px;font-weight:800;letter-spacing:.4px;color:#f3e4c3;
+    font-variant-numeric:tabular-nums;white-space:nowrap}
+  .stopwatch-total{display:flex;align-items:center;gap:6px;font-size:10px;color:#8ea3b7;
+    white-space:nowrap}
+  .stopwatch-total b{margin-left:auto;color:#cfdcea;font-size:11px;
+    font-variant-numeric:tabular-nums}
   .rail-total{display:flex;align-items:center;gap:6px;font-size:11px;color:#9fb3c8;
     font-weight:700;white-space:nowrap}
   .rail-total b{margin-left:auto;color:#f3e4c3;font-size:14px;
@@ -105,6 +120,11 @@
   /* 窄屏：变成棋盘上方的横向计时条 */
   .time-rail.rail-top{left:6px;right:6px;flex-direction:row;align-items:center;gap:8px;
     padding:6px 8px;border-radius:10px}
+  .time-rail.rail-top .stopwatch{display:flex;flex-direction:row;align-items:center;gap:8px;
+    margin:0;padding:0;background:transparent;border:0;border-radius:0}
+  .time-rail.rail-top .stopwatch-side{flex:0 0 auto}
+  .time-rail.rail-top .stopwatch-time{margin:0;font-size:16px}
+  .time-rail.rail-top .stopwatch-total{flex:0 0 auto;margin-left:0}
   .time-rail.rail-top .rail-total{flex:0 0 auto}
   .time-rail.rail-top .rail-moves{flex:1 1 auto;flex-direction:row;overflow-x:auto;
     overflow-y:hidden;max-height:none;gap:0}
@@ -213,7 +233,11 @@
   <div class="board-wrap" id="boardWrap">
     <canvas id="board"></canvas>
     <div class="time-rail" id="timeRail">
-      <div class="rail-total"><span>总用时</span><b id="railTotalTime">00:00</b></div>
+      <div class="stopwatch" id="stopwatch">
+        <div class="stopwatch-side"><span class="sw-dot"></span><span id="stopwatchSide">黑棋</span></div>
+        <div class="stopwatch-time" id="stopwatchTime">00:00.0</div>
+        <div class="stopwatch-total"><span>总用时</span><b id="railTotalTime">00:00</b></div>
+      </div>
       <div class="rail-moves" id="railMoveTimes"></div>
     </div>
     <div class="coach" id="coachCard">
@@ -1619,6 +1643,9 @@ var lastMoveTime = document.getElementById('lastMoveTime');
 var totalTime  = document.getElementById('totalTime');
 var moveTimesEl = document.getElementById('moveTimes');
 var timeRail = document.getElementById('timeRail');
+var stopwatch = document.getElementById('stopwatch');
+var stopwatchSide = document.getElementById('stopwatchSide');
+var stopwatchTime = document.getElementById('stopwatchTime');
 var railTotalTime = document.getElementById('railTotalTime');
 var railMoveTimesEl = document.getElementById('railMoveTimes');
 var clockStartAt = 0, baseElapsed = 0, turnStartedAt = 0;
@@ -1667,6 +1694,27 @@ function formatMoveTime(ms) {
   return formatClock(ms);
 }
 
+function formatStopwatch(ms) {
+  var totalTenths = Math.floor(Math.max(0, ms) / 100);
+  var tenths = totalTenths % 10;
+  var totalSec = Math.floor(totalTenths / 10);
+  var h = Math.floor(totalSec / 3600);
+  var m = Math.floor((totalSec % 3600) / 60);
+  var s = totalSec % 60;
+  return (h > 0 ? h + ':' + pad2(m) : pad2(m)) + ':' + pad2(s) + '.' + tenths;
+}
+
+function sideTotalMs(color) {
+  var sum = 0;
+  for (var i = 0; i < moveTimeList.length; i++) {
+    if (moveTimeList[i].color === color) sum += moveTimeList[i].ms;
+  }
+  if (clockRunning && game.turn === color && turnStartedAt) {
+    sum += Date.now() - turnStartedAt;
+  }
+  return sum;
+}
+
 function getTotalMs() {
   if (clockStartAt === 0) return 0;
   if (clockRunning) return baseElapsed + (Date.now() - clockStartAt);
@@ -1700,6 +1748,13 @@ function updateClockUI() {
   var totalText = formatClock(getTotalMs());
   totalTime.textContent = totalText;
   if (railTotalTime) railTotalTime.textContent = totalText;
+  if (stopwatch && stopwatchSide && stopwatchTime) {
+    var lastColor = moveTimeList.length ? moveTimeList[moveTimeList.length - 1].color : game.turn;
+    var swColor = game.over ? lastColor : game.turn;
+    stopwatchSide.textContent = t(swColor === BLACK ? '黑棋' : '白棋');
+    stopwatchTime.textContent = formatStopwatch(sideTotalMs(swColor));
+    stopwatch.classList.toggle('running', clockRunning && game.over === false);
+  }
   lastMoveTime.textContent = moveTimeList.length ? formatMoveTime(lastMoveMs) : '—';
   var cur = (clockRunning && game.over === false && turnStartedAt) ? Date.now() - turnStartedAt : 0;
   turnTime.textContent = formatClock(cur);
@@ -1715,7 +1770,7 @@ function startClock() {
   lastMoveMs = 0;
   renderMoveTimes();
   updateClockUI();
-  clockTimer = setInterval(updateClockUI, 500);
+  clockTimer = setInterval(updateClockUI, 100);
 }
 
 function stopClock() {
@@ -1731,7 +1786,7 @@ function resumeClock() {
   clockStartAt = Date.now();
   clockRunning = true;
   updateClockUI();
-  if (clockTimer === null) clockTimer = setInterval(updateClockUI, 500);
+  if (clockTimer === null) clockTimer = setInterval(updateClockUI, 100);
 }
 
 function recordMoveTime(color, startedAt) {
