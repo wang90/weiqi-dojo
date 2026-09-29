@@ -87,6 +87,31 @@
   .hint{font-size:12px;color:#8ea3b7;line-height:1.55;margin-top:8px}
   .msg{min-height:20px;font-size:13px;color:#ffb4a2;text-align:center;font-weight:600;
     opacity:0;transition:opacity .25s}
+  /* 棋盘边上的计时条 */
+  .time-rail{position:absolute;z-index:5;display:flex;flex-direction:column;gap:5px;
+    background:linear-gradient(160deg,rgba(35,50,67,.96),rgba(19,27,37,.96));
+    border:1px solid rgba(127,215,255,.28);border-radius:12px;padding:8px;
+    box-shadow:0 10px 28px rgba(0,0,0,.5);pointer-events:none}
+  .rail-total{display:flex;align-items:center;gap:6px;font-size:11px;color:#9fb3c8;
+    font-weight:700;white-space:nowrap}
+  .rail-total b{margin-left:auto;color:#f3e4c3;font-size:14px;
+    font-variant-numeric:tabular-nums}
+  .rail-moves{display:flex;flex-direction:column;gap:1px;overflow-y:auto;
+    flex:1 1 auto;min-height:0;max-height:100%;pointer-events:auto;scrollbar-width:thin}
+  .rail-move-row{display:flex;align-items:center;font-size:11px;color:#9fb3c8;
+    padding:1px 0;white-space:nowrap}
+  .rail-move-row b{margin-left:auto;color:#cfdcea;font-weight:700;
+    font-variant-numeric:tabular-nums}
+  /* 窄屏：变成棋盘上方的横向计时条 */
+  .time-rail.rail-top{left:6px;right:6px;flex-direction:row;align-items:center;gap:8px;
+    padding:6px 8px;border-radius:10px}
+  .time-rail.rail-top .rail-total{flex:0 0 auto}
+  .time-rail.rail-top .rail-moves{flex:1 1 auto;flex-direction:row;overflow-x:auto;
+    overflow-y:hidden;max-height:none;gap:0}
+  .time-rail.rail-top .rail-move-row{flex:0 0 auto;gap:3px;padding:0 7px;
+    border-right:1px solid rgba(255,255,255,.08)}
+  .time-rail.rail-top .rail-move-row:last-child{border-right:0}
+  .time-rail.rail-top .rail-move-row b{margin-left:4px}
   .msg.show{opacity:1}
   .thinking{display:inline-block;animation:blink 1s infinite}
 
@@ -187,6 +212,10 @@
 <main>
   <div class="board-wrap" id="boardWrap">
     <canvas id="board"></canvas>
+    <div class="time-rail" id="timeRail">
+      <div class="rail-total"><span>总用时</span><b id="railTotalTime">00:00</b></div>
+      <div class="rail-moves" id="railMoveTimes"></div>
+    </div>
     <div class="coach" id="coachCard">
       <button class="coach-close" id="coachClose" title="关闭点评">×</button>
       <div class="coach-head">
@@ -1484,6 +1513,7 @@ function resizeCanvas() {
   computeMetrics();
   render();
   placeCoach();
+  placeTimeRail();
 }
 
 /* 画布是居中的，所以点评卡片要按棋盘边缘定位，而不是容器边缘 */
@@ -1514,6 +1544,32 @@ function placeCoach() {
   }
 }
 
+/* 棋盘边上的计时条：宽屏放左侧空白，窄屏放棋盘上方 */
+function placeTimeRail() {
+  if (timeRail == null || boardWrap == null) return;
+  var r = boardWrap.getBoundingClientRect();
+  if (r.width === 0 || r.height === 0) return;
+
+  var gutter = Math.floor((r.width - S) / 2);
+  var topGap = Math.max(0, Math.floor((r.height - S) / 2));
+
+  if (gutter >= 96) {
+    timeRail.classList.remove('rail-top');
+    timeRail.style.left = '6px';
+    timeRail.style.right = 'auto';
+    timeRail.style.top = (topGap + 4) + 'px';
+    timeRail.style.width = Math.min(gutter - 12, 132) + 'px';
+    timeRail.style.maxHeight = Math.max(80, S - 8) + 'px';
+  } else {
+    timeRail.classList.add('rail-top');
+    timeRail.style.left = '6px';
+    timeRail.style.right = '6px';
+    timeRail.style.top = Math.max(2, topGap - 30) + 'px';
+    timeRail.style.width = 'auto';
+    timeRail.style.maxHeight = 'none';
+  }
+}
+
 /* ===================================================================
    7. 界面
    =================================================================== */
@@ -1537,6 +1593,9 @@ var turnTime   = document.getElementById('turnTime');
 var lastMoveTime = document.getElementById('lastMoveTime');
 var totalTime  = document.getElementById('totalTime');
 var moveTimesEl = document.getElementById('moveTimes');
+var timeRail = document.getElementById('timeRail');
+var railTotalTime = document.getElementById('railTotalTime');
+var railMoveTimesEl = document.getElementById('railMoveTimes');
 var clockStartAt = 0, baseElapsed = 0, turnStartedAt = 0;
 var clockRunning = false, clockTimer = null;
 var moveTimeList = [], lastMoveMs = 0;
@@ -1586,21 +1645,32 @@ function getTotalMs() {
 }
 
 function renderMoveTimes() {
-  if (moveTimesEl == null) return;
-  var html = '';
+  var html = '', railHtml = '';
   for (var i = 0; i < moveTimeList.length; i++) {
     var m = moveTimeList[i];
+    var name = t(m.color === BLACK ? '黑' : '白');
+    var timeText = formatMoveTime(m.ms);
     html += '<div class="move-time-row"><span>' + m.no + '. ' +
-            t(m.color === BLACK ? '黑' : '白') + '</span><b>' +
-            formatMoveTime(m.ms) + '</b></div>';
+            name + '</span><b>' + timeText + '</b></div>';
+    railHtml += '<div class="rail-move-row"><span>' + m.no + name +
+                '</span><b>' + timeText + '</b></div>';
   }
-  moveTimesEl.innerHTML = html;
-  moveTimesEl.scrollTop = moveTimesEl.scrollHeight || 0;
+  if (moveTimesEl) {
+    moveTimesEl.innerHTML = html;
+    moveTimesEl.scrollTop = moveTimesEl.scrollHeight || 0;
+  }
+  if (railMoveTimesEl) {
+    railMoveTimesEl.innerHTML = railHtml;
+    railMoveTimesEl.scrollTop = railMoveTimesEl.scrollHeight || 0;
+    railMoveTimesEl.scrollLeft = railMoveTimesEl.scrollWidth || 0;
+  }
 }
 
 function updateClockUI() {
   if (turnTime == null) return;
-  totalTime.textContent = formatClock(getTotalMs());
+  var totalText = formatClock(getTotalMs());
+  totalTime.textContent = totalText;
+  if (railTotalTime) railTotalTime.textContent = totalText;
   lastMoveTime.textContent = moveTimeList.length ? formatMoveTime(lastMoveMs) : '—';
   var cur = (clockRunning && game.over === false && turnStartedAt) ? Date.now() - turnStartedAt : 0;
   turnTime.textContent = formatClock(cur);

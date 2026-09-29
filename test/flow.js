@@ -121,6 +121,8 @@ function click(ctx, x, y) {
   ok(G.moveTimeList[0].color === 1 && G.moveTimeList[1].color === 2, '每手用时颜色正确');
   ok(/^\d{2}:\d{2}$/.test(ctx.byId['totalTime'].textContent), '总用时显示为时钟格式');
   ok(/^\d+(\.\d+)?s$|^\d{2}:\d{2}$/.test(ctx.byId['lastMoveTime'].textContent), '上一步用时已显示');
+  ok(ctx.byId['railMoveTimes'].innerHTML.indexOf('rail-move-row') >= 0, '棋盘边计时条显示每手用时');
+  ok(/^\d{2}:\d{2}$/.test(ctx.byId['railTotalTime'].textContent), '棋盘边计时条显示总用时');
 
   console.log('');
   console.log('--- 思考期间快速连点 10 次 ---');
