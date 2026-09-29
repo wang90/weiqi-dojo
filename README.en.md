@@ -14,6 +14,7 @@ Originally written for parents who are teaching their kids from scratch.
 
 ### Play (home page)
 - **Play against the computer** (default) or two players; 9×9, 13×13 and 19×19 boards
+- **Choose your color**: in computer games you can play Black or White; choosing White makes the computer play Black first
 - **Handicap stones**: 2–9 stones placed on the standard star points; White moves first afterwards
 - **Four difficulty levels**: Beginner / Easy / Intermediate / Advanced
 - **Live move review** — after every move you play, it tells you the pros and cons, for example:

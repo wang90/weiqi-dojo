@@ -195,6 +195,17 @@ function click(ctx, x, y) {
   G.game = oldGame;
 
   console.log('');
+  console.log('--- 人机执白 ---');
+  G.humanColor = 2;
+  G.startGame();
+  await new Promise(function (r) { setTimeout(r, 1600); });
+  ok(G.game.moveCount === 1 && G.game.turn === 2, '玩家执白时电脑执黑先下');
+  click(ctx, 2, 2);
+  await new Promise(function (r) { setTimeout(r, 1600); });
+  ok(G.game.moveCount === 3 && G.game.turn === 2, '玩家执白可以落子，电脑继续执黑回应');
+  G.humanColor = 1;
+
+  console.log('');
   console.log(fails === 0 ? '★ 全部通过' : '★ ' + fails + ' 项失败');
   process.exit(fails === 0 ? 0 : 1);
 })();

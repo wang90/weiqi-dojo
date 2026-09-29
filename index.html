@@ -265,8 +265,17 @@
 
     <div class="card">
       <div class="lbl">对局模式</div>
-      <label class="radio"><input type="radio" name="mode" value="ai" checked> 与电脑对弈（你执黑）</label>
+      <label class="radio"><input type="radio" name="mode" value="ai" checked> 与电脑对弈</label>
       <label class="radio"><input type="radio" name="mode" value="pvp"> 双人对弈</label>
+    </div>
+
+    <div class="card" id="sideCard">
+      <div class="lbl">选择执子</div>
+      <div class="chip-row" id="side">
+        <button data-side="1" class="on">执黑</button>
+        <button data-side="2">执白</button>
+      </div>
+      <div class="hint" id="sideHint">选择白棋时，电脑执黑先下。</div>
     </div>
 
     <div class="card">
@@ -316,6 +325,19 @@ var EMPTY = 0, BLACK = 1, WHITE = 2;
 
 /* ---- 本地存储：记住用户上次用的棋盘路数 ---- */
 var LS_KEY = 'weiqi.boardSize';
+var LS_SIDE_KEY = 'weiqi.humanColor';
+
+function loadHumanColor() {
+  try {
+    var v = parseInt(localStorage.getItem(LS_SIDE_KEY), 10);
+    if (v === BLACK || v === WHITE) return v;
+  } catch (e) {}
+  return BLACK;
+}
+
+function saveHumanColor(v) {
+  try { localStorage.setItem(LS_SIDE_KEY, String(v)); } catch (e) {}
+}
 
 function loadSavedSize() {
   try {
@@ -1301,8 +1323,11 @@ var boardWrap = document.getElementById('boardWrap');
 
 var game = new Game(loadSavedSize());
 var mode = 'ai';
+var humanColor = loadHumanColor();  /* 人机模式下玩家执子：BLACK / WHITE */
 var handicap = 0;
 var levelKey = 'normal';
+
+function aiSide() { return 3 - humanColor; }
 var hover = null;
 var S = 400, cell = 40, margin = 40;
 var aiTimer = null;
@@ -1484,7 +1509,7 @@ function drawLastMove() {
 
 function drawHover() {
   if (!hover || game.over) return;
-  if (mode === 'ai' && game.turn === WHITE) return;
+  if (mode === 'ai' && game.turn === aiSide()) return;
   if (game.board[hover.y][hover.x] !== EMPTY) return;
   drawStone(margin + hover.x * cell, margin + hover.y * cell, cell * 0.47, game.turn, 0.4);
 }
@@ -1604,6 +1629,10 @@ var hzBox      = document.getElementById('hz');
 var hzHint     = document.getElementById('hzHint');
 var lvCard     = document.getElementById('lvCard');
 var lvBox      = document.getElementById('lv');
+var sideCard   = document.getElementById('sideCard');
+var sideBox    = document.getElementById('side');
+var sideHint   = document.getElementById('sideHint');
+var hintState  = '';
 var modal      = document.getElementById('modal');
 var modalIcon  = document.getElementById('modalIcon');
 var modalTitle = document.getElementById('modalTitle');
@@ -1758,13 +1787,14 @@ function setCountVisible(on) {
 
 /* 电脑认输判断：只有领先方明显领先、且棋盘基本定型时才认输，避免中盘误判 */
 function shouldAIResign() {
-  if (mode !== 'ai' || game.over || game.turn !== WHITE) return false;
+  if (mode !== 'ai' || game.over || game.turn !== aiSide()) return false;
   var total = game.size * game.size;
   if (game.moveCount < total * 0.42) return false;
 
   var sc = scorePosition(game.board, game.size);
   var margin = game.size <= 9 ? 18 : (game.size <= 13 ? 24 : 32);
-  if (sc.diff < margin) return false;                 /* sc.diff > 0：黑方领先 */
+  var aiLead = (aiSide() === BLACK) ? sc.diff : -sc.diff;
+  if (aiLead > -margin) return false;
 
   var stones = sc.blackStones + sc.whiteStones;
   var occupied = stones / total;
@@ -1775,8 +1805,23 @@ function shouldAIResign() {
   return true;
 }
 
+function updateModeHint() {
+  var state = (mode === 'ai') ? (humanColor === WHITE ? 'white' : 'black') : 'pvp';
+  if (hintState === state) return;
+  hintState = state;
+  if (state === 'white') {
+    hzHint.textContent = '让子棋中电脑执黑，摆好让子后你执白先走。';
+  } else if (state === 'black') {
+    hzHint.textContent = '让子数越多，电脑越吃力。9 路建议让 3～5 子。';
+  } else {
+    hzHint.textContent = '双人模式下，白棋先走（黑方已摆让子）。';
+  }
+}
+
 function updateUI() {
   var isBlack = game.turn === BLACK;
+  sideCard.style.display = (mode === 'ai') ? '' : 'none';
+  updateModeHint();
   turnDot.className = 'stone-dot ' + (isBlack ? 'b' : 'w');
   if (game.over) {
     turnLabel.textContent = '对局结束';
@@ -1784,7 +1829,7 @@ function updateUI() {
     turnLabel.innerHTML = '电脑思考中<span class="thinking">…</span>';
   } else {
     var lbl = isBlack ? '黑棋落子' : '白棋落子';
-    if (mode === 'ai' && !isBlack) lbl += '（电脑）';
+    if (mode === 'ai' && game.turn === aiSide()) lbl += '（电脑）';
     if (game.handicap > 0) lbl += ' · ' + t('让{n}子', { n: game.handicap });
     turnLabel.textContent = lbl;
   }
@@ -1812,6 +1857,21 @@ function updateUI() {
       hzBox.appendChild(b);
     })(opts[i]);
   }
+})();
+
+(function bindSideUI() {
+  sideBox.addEventListener('click', function (e) {
+    var btn = e.target.closest('button');
+    if (btn == null) return;
+    var v = parseInt(btn.dataset.side, 10);
+    if (v === BLACK || v === WHITE) {
+      humanColor = v;
+      saveHumanColor(v);
+      var all = sideBox.querySelectorAll('button');
+      for (var i = 0; i < all.length; i++) all[i].classList.toggle('on', all[i] === btn);
+      startGame();
+    }
+  });
 })();
 
 (function buildLevelUI() {
@@ -1873,14 +1933,14 @@ var aiGen = 0;
 function scheduleAi() {
   clearTimeout(aiTimer);
   aiThinking = false;
-  if (mode !== 'ai' || game.over || game.turn !== WHITE) { updateUI(); return; }
+  if (mode !== 'ai' || game.over || game.turn !== aiSide()) { updateUI(); return; }
   if (shouldAIResign()) { finishGame('电脑认输'); return; }
 
   var myGen = ++aiGen;
 
   aiTimer = setTimeout(function () {
     if (myGen !== aiGen) return;
-    if (mode !== 'ai' || game.over || game.turn !== WHITE) { updateUI(); return; }
+    if (mode !== 'ai' || game.over || game.turn !== aiSide()) { updateUI(); return; }
 
     aiThinking = true;                 /* 思考期间点击一律忽略 */
     updateUI();
@@ -1889,7 +1949,7 @@ function scheduleAi() {
     requestAnimationFrame(function () {
       setTimeout(function () {
         if (myGen !== aiGen) return;
-        if (mode !== 'ai' || game.over || game.turn !== WHITE) { aiThinking = false; updateUI(); return; }
+        if (mode !== 'ai' || game.over || game.turn !== aiSide()) { aiThinking = false; updateUI(); return; }
 
         aiChooseMove(game, levelKey, function (mv) {
           if (myGen !== aiGen) return;           /* 这盘已经作废了 */
@@ -1951,7 +2011,7 @@ canvas.addEventListener('pointerdown', function (e) {
   e.preventDefault();
   if (aiThinking) return;                       /* 电脑思考期间不响应，避免点击积压后爆发 */
   if (game.over) { toast('对局结束了，点「重新开始」吧'); return; }
-  if (mode === 'ai' && game.turn === WHITE) return;
+  if (mode === 'ai' && game.turn === aiSide()) return;
   var rect = canvas.getBoundingClientRect();
   var px = e.clientX - rect.left;
   var py = e.clientY - rect.top;
@@ -2006,7 +2066,7 @@ btnUndo.addEventListener('click', function () {
   if (!game.history.length) { toast('还没有可悔的棋'); return; }
   game.undo();
   if (mode === 'ai') {
-    while (game.turn === WHITE && game.history.length) game.undo();
+    while (game.turn === aiSide() && game.history.length) game.undo();
   }
   hover = null;
   pruneMoveTimesAfterUndo();
@@ -2018,7 +2078,7 @@ btnUndo.addEventListener('click', function () {
 
 btnPass.addEventListener('click', function () {
   if (game.over) { toast('对局已结束'); return; }
-  if (mode === 'ai' && game.turn === WHITE) return;
+  if (mode === 'ai' && game.turn === aiSide()) return;
   var passColor = game.turn;
   var passStart = turnStartedAt;
   game.pass();
@@ -2076,10 +2136,8 @@ for (var mi = 0; mi < modeRadios.length; mi++) {
     clearTimeout(aiTimer);
     aiThinking = false;
     aiGen++;
-    hzHint.textContent = mode === 'ai'
-      ? '让子数越多，电脑越吃力。9 路建议让 3～5 子。'
-      : '双人模式下，白棋先走（黑方已摆让子）。';
-    if (mode === 'ai' && !game.over && game.turn === WHITE) scheduleAi();
+    updateModeHint();
+    if (mode === 'ai' && game.over === false && game.turn === aiSide()) scheduleAi();
     render();
     updateUI();
   });
@@ -2101,15 +2159,21 @@ function finishGame(reason) {
   var icon, title, sub, cls;
 
   if (mode === 'ai') {
+    var humanIsBlack = humanColor === BLACK;
+    var humanWins = humanIsBlack ? blackWins : (diff < 0);
+    var humanName = t(humanIsBlack ? '黑棋' : '白棋');
+    var aiName = t(humanIsBlack ? '白棋' : '黑棋');
     if (reason === '电脑认输') {
       icon = '🏳️'; title = '电脑认输了'; cls = 'modal-title win';
       sub = t('电脑判断形势已落后 {n} 目，主动认输。', { n: Math.abs(diff).toFixed(1) });
-    } else if (blackWins) {
+    } else if (humanWins) {
       icon = '🎉'; title = '恭喜！你赢了'; cls = 'modal-title win';
-      sub = t('黑棋（你）赢了 {n} 目，太棒了！', { n: Math.abs(diff).toFixed(1) });
+      sub = t('{side}（你）赢了 {n} 目，太棒了！',
+              { side: humanName, n: Math.abs(diff).toFixed(1) });
     } else {
       icon = '💪'; title = '这局电脑赢了'; cls = 'modal-title lose';
-      sub = t('白棋（电脑）赢了 {n} 目。别灰心，再来一局试试！', { n: Math.abs(diff).toFixed(1) });
+      sub = t('{side}（电脑）赢了 {n} 目。别灰心，再来一局试试！',
+              { side: aiName, n: Math.abs(diff).toFixed(1) });
     }
   } else {
     if (blackWins) {
@@ -2162,10 +2226,15 @@ requestAnimationFrame(function () {
   for (var i = 0; i < btns.length; i++) {
     btns[i].classList.toggle('on', parseInt(btns[i].dataset.size, 10) === saved);
   }
+  var sideBtns = sideBox.querySelectorAll('button');
+  for (var si = 0; si < sideBtns.length; si++) {
+    sideBtns[si].classList.toggle('on', parseInt(sideBtns[si].dataset.side, 10) === humanColor);
+  }
   computeMetrics();
   resizeCanvas();
   updateUI();
   startClock();
+  scheduleAi();
 });
 </script>
 </body>
