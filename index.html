@@ -419,8 +419,8 @@ var HANDICAP_POINTS = {
 var AI_LEVELS = {
   easy:   { time: 80,   pool: 10, prior: 1.6, wv: 0.20, blunder: 0.45, name: '入门' },
   normal: { time: 380,  pool: 6,  prior: 1.8, wv: 0.70, blunder: 0.15, name: '初级' },
-  hard:   { time: 900,  pool: 4,  prior: 2.0, wv: 1.00, blunder: 0.00, name: '中级' },
-  expert: { time: 2200, pool: 3,  prior: 2.4, wv: 1.00, blunder: 0.00, name: '高级' }
+  hard:   { time: 700,  pool: 4,  prior: 2.0, wv: 1.00, blunder: 0.00, name: '中级' },
+  expert: { time: 1000, pool: 3,  prior: 2.4, wv: 1.00, blunder: 0.00, name: '高级' }
 };
 
 function forEachNeighbor(x, y, size, cb) {
@@ -1009,8 +1009,17 @@ function aiChooseMove(g, levelKey, done, cancel) {
   }
 
   if (stones === 0) {
+    /* 开局第一手别走天元：在四个角星中随机选一个 */
     var c = Math.floor(size / 2);
-    done({ x: c, y: c });
+    var stars = STARS[size] || [];
+    var corners = [];
+    for (var oi = 0; oi < stars.length; oi++) {
+      if (stars[oi][0] === c || stars[oi][1] === c) continue;
+      corners.push(stars[oi]);
+    }
+    if (corners.length === 0) corners.push([c, c]);
+    var op = corners[Math.floor(Math.random() * corners.length)];
+    done({ x: op[0], y: op[1] });
     return;
   }
   if (cand.size === 0) { done(null); return; }

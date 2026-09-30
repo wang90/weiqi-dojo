@@ -57,6 +57,12 @@ async function hits(g, lv, n, pred) {
   });
   ok(hz === 0, '让子表 72 组正常');
 
+  console.log('--- 开局 ---');
+  var emptyG = new Game(9); emptyG.turn = BLACK;
+  var first = await pick(emptyG, 'expert');
+  ok(first && (first.x === 4 && first.y === 4) === false, '第一手不落天元');
+  ok(first && (first.x === 2 || first.x === 6) && (first.y === 2 || first.y === 6), '第一手落在角星');
+
   console.log('--- AI 棋力 ---');
   var h1 = await hits(mk([[4,4,BLACK],[3,4,WHITE],[5,4,WHITE],[4,3,WHITE]], WHITE), 'normal', 10,
                       function (m) { return m.x === 4 && m.y === 5; });
