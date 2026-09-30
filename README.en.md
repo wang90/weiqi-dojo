@@ -24,7 +24,7 @@ Originally written for parents who are teaching their kids from scratch.
 - **Automatic scoring**: counts the board at the end and shows the result (komi 6.5)
 - **Score estimate**: tap "Score estimate" to see the current count and territory marked on the board; midgame estimates are approximate, so dead stones should be captured first
 - **Computer auto-resign**: in the late game, if the computer judges itself clearly behind and the position is largely settled, it resigns instead of thinking on
-- **Move timer**: a rotating stopwatch beside the board accumulates the current player time; per-move times and total game time are shown as well
+- **Move timer**: a rotating stopwatch beside the board, collapsed by default; expanding it shows per-move times in a fixed-height auto-scrolling list, plus total game time
 - **Remembers your board size** between visits (stored locally in your browser, nothing is uploaded)
 
 ### Life & Death problems

@@ -68,7 +68,7 @@
     font-size:14px;font-weight:800;color:#f3e4c3;text-align:center}
   .time-row{display:flex;align-items:center;gap:8px;font-size:13px;color:#b9c9d8;padding:3px 0}
   .time-row b{margin-left:auto;color:#f3e4c3;font-size:14px;font-variant-numeric:tabular-nums}
-  .move-times{max-height:112px;overflow-y:auto;margin-top:5px;padding-top:5px;
+  .move-times{height:80px;max-height:80px;overflow-y:auto;margin-top:5px;padding-top:5px;
     border-top:1px solid rgba(255,255,255,.07)}
   .move-time-row{display:flex;align-items:center;font-size:12px;color:#9fb3c8;padding:2px 0}
   .move-time-row b{margin-left:auto;color:#cfdcea;font-weight:700;font-variant-numeric:tabular-nums}
@@ -92,6 +92,10 @@
     background:linear-gradient(160deg,rgba(35,50,67,.96),rgba(19,27,37,.96));
     border:1px solid rgba(127,215,255,.28);border-radius:12px;padding:8px;
     box-shadow:0 10px 28px rgba(0,0,0,.5);pointer-events:none}
+  .rail-toggle{position:absolute;top:4px;right:4px;z-index:2;width:20px;height:20px;
+    padding:0;border:0;border-radius:6px;background:rgba(255,255,255,.1);color:#9fb3c8;
+    font-family:inherit;font-size:12px;line-height:1;cursor:pointer;pointer-events:auto}
+  .rail-toggle:hover{background:rgba(255,255,255,.22);color:#fff}
   .stopwatch{margin-bottom:4px;padding:6px 7px;border-radius:10px;
     background:rgba(0,0,0,.17);border:1px solid rgba(255,255,255,.06)}
   .stopwatch-side{display:flex;align-items:center;gap:5px;font-size:11px;color:#9fb3c8;
@@ -112,7 +116,9 @@
   .rail-total b{margin-left:auto;color:#f3e4c3;font-size:14px;
     font-variant-numeric:tabular-nums}
   .rail-moves{display:flex;flex-direction:column;gap:1px;overflow-y:auto;
-    flex:1 1 auto;min-height:0;max-height:100%;pointer-events:auto;scrollbar-width:thin}
+    flex:0 0 80px;height:80px;max-height:80px;min-height:0;
+    pointer-events:auto;scrollbar-width:thin}
+  .time-rail.collapsed .rail-moves{display:none}
   .rail-move-row{display:flex;align-items:center;font-size:11px;color:#9fb3c8;
     padding:1px 0;white-space:nowrap}
   .rail-move-row b{margin-left:auto;color:#cfdcea;font-weight:700;
@@ -127,7 +133,7 @@
   .time-rail.rail-top .stopwatch-total{flex:0 0 auto;margin-left:0}
   .time-rail.rail-top .rail-total{flex:0 0 auto}
   .time-rail.rail-top .rail-moves{flex:1 1 auto;flex-direction:row;overflow-x:auto;
-    overflow-y:hidden;max-height:none;gap:0}
+    overflow-y:hidden;height:30px;max-height:30px;gap:0}
   .time-rail.rail-top .rail-move-row{flex:0 0 auto;gap:3px;padding:0 7px;
     border-right:1px solid rgba(255,255,255,.08)}
   .time-rail.rail-top .rail-move-row:last-child{border-right:0}
@@ -232,7 +238,8 @@
 <main>
   <div class="board-wrap" id="boardWrap">
     <canvas id="board"></canvas>
-    <div class="time-rail" id="timeRail">
+    <div class="time-rail collapsed" id="timeRail">
+      <button class="rail-toggle" id="railToggle" type="button" aria-expanded="false">▸</button>
       <div class="stopwatch" id="stopwatch">
         <div class="stopwatch-side"><span class="sw-dot"></span><span id="stopwatchSide">黑棋</span></div>
         <div class="stopwatch-time" id="stopwatchTime">00:00.0</div>
@@ -1643,6 +1650,7 @@ var lastMoveTime = document.getElementById('lastMoveTime');
 var totalTime  = document.getElementById('totalTime');
 var moveTimesEl = document.getElementById('moveTimes');
 var timeRail = document.getElementById('timeRail');
+var railToggle = document.getElementById('railToggle');
 var stopwatch = document.getElementById('stopwatch');
 var stopwatchSide = document.getElementById('stopwatchSide');
 var stopwatchTime = document.getElementById('stopwatchTime');
@@ -1738,6 +1746,17 @@ function renderMoveTimes() {
   }
   if (railMoveTimesEl) {
     railMoveTimesEl.innerHTML = railHtml;
+    railMoveTimesEl.scrollTop = railMoveTimesEl.scrollHeight || 0;
+    railMoveTimesEl.scrollLeft = railMoveTimesEl.scrollWidth || 0;
+  }
+}
+
+function setRailExpanded(on) {
+  if (timeRail == null || railToggle == null) return;
+  timeRail.classList.toggle('collapsed', on === false);
+  railToggle.textContent = on ? '▾' : '▸';
+  railToggle.setAttribute('aria-expanded', on ? 'true' : 'false');
+  if (on && railMoveTimesEl) {
     railMoveTimesEl.scrollTop = railMoveTimesEl.scrollHeight || 0;
     railMoveTimesEl.scrollLeft = railMoveTimesEl.scrollWidth || 0;
   }
@@ -2149,6 +2168,10 @@ btnCount.addEventListener('click', function () {
   setCountVisible(!countVisible);
 });
 
+railToggle.addEventListener('click', function () {
+  setRailExpanded(timeRail.classList.contains('collapsed'));
+});
+
 btnEnd.addEventListener('click', function () {
   if (game.over) { toast('对局已经结束了'); return; }
   if (!confirm('现在结束并计算胜负吗？\n（如果盘上还有明显的死子，建议先把它提掉再数）')) return;
@@ -2289,6 +2312,7 @@ requestAnimationFrame(function () {
   resizeCanvas();
   updateUI();
   startClock();
+  setRailExpanded(false);
   scheduleAi();
 });
 </script>

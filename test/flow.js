@@ -125,6 +125,11 @@ function click(ctx, x, y) {
   ok(/^\d{2}:\d{2}$/.test(ctx.byId['railTotalTime'].textContent), '棋盘边计时条显示总用时');
   ok(ctx.byId['stopwatchSide'].textContent === '黑棋', '秒表跟随当前手方');
   ok(/^\d{2}:\d{2}\.\d$/.test(ctx.byId['stopwatchTime'].textContent), '秒表显示累计用时');
+  ok(ctx.byId['timeRail'].classList.contains('collapsed'), '左侧用时默认收起');
+  ctx.byId['railToggle']._ls.click[0]();
+  ok(ctx.byId['timeRail'].classList.contains('collapsed') === false, '点击展开左侧用时明细');
+  ctx.byId['railToggle']._ls.click[0]();
+  ok(ctx.byId['timeRail'].classList.contains('collapsed'), '再次点击收起');
 
   console.log('');
   console.log('--- 思考期间快速连点 10 次 ---');
