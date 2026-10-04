@@ -2023,6 +2023,21 @@ requestAnimationFrame(function () {
   resizeAll();
   kifuRender();
   kifuUpdateUI();
+
+  try {
+    var pendingRaw = sessionStorage.getItem('weiqi.openRecord');
+    if (pendingRaw) {
+      var pendingRec = JSON.parse(pendingRaw);
+      sessionStorage.removeItem('weiqi.openRecord');
+      loadRecord(pendingRec);
+      tabs.querySelectorAll('button').forEach(function (b) {
+        b.classList.toggle('on', b.dataset.t === 'kifu');
+      });
+      document.getElementById('paneTsu').classList.remove('on');
+      document.getElementById('paneKifu').classList.add('on');
+      resizeAll();
+    }
+  } catch (e) {}
 });
 </script>
 </body>

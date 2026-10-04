@@ -28,6 +28,51 @@
   .tut-link:hover{background:rgba(120,200,255,.26)}
   .tut-link.practice{background:rgba(61,220,132,.15);border-color:rgba(61,220,132,.35);color:#8ce8b0}
   .tut-link.practice:hover{background:rgba(61,220,132,.28)}
+  .rec-entry{display:inline-flex;align-items:center;gap:6px;font-family:inherit;
+    background:rgba(240,192,96,.12);border:1px solid rgba(240,192,96,.3);color:#f3d38a;
+    padding:9px 13px;border-radius:11px;font-size:14px;font-weight:700;cursor:pointer;transition:.18s}
+  .rec-entry:hover{background:rgba(240,192,96,.24)}
+  .rec-badge{min-width:18px;height:18px;border-radius:9px;background:#f0c060;color:#231a08;
+    font-size:11px;font-weight:900;display:inline-flex;align-items:center;justify-content:center;
+    padding:0 5px;line-height:1}
+  .rec-scrim{position:fixed;inset:0;background:rgba(4,9,14,.55);z-index:110;
+    opacity:0;pointer-events:none;transition:opacity .2s}
+  .rec-scrim.show{opacity:1;pointer-events:auto}
+  .rec-drawer{position:fixed;top:0;right:0;bottom:0;width:min(380px,94vw);z-index:120;
+    background:linear-gradient(165deg,#25344a,#151d27);border-left:1px solid rgba(255,255,255,.12);
+    box-shadow:-18px 0 50px rgba(0,0,0,.55);display:flex;flex-direction:column;
+    transform:translateX(105%);transition:transform .24s ease;will-change:transform}
+  .rec-drawer.show{transform:translateX(0)}
+  .rec-drawer-head{display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:14px 14px 10px;border-bottom:1px solid rgba(255,255,255,.08);font-size:16px;font-weight:900;
+    color:#f3e4c3}
+  .rec-drawer-close{width:28px;height:28px;padding:0;border:0;border-radius:8px;
+    background:rgba(255,255,255,.1);color:#b9c9d8;font-family:inherit;font-size:18px;
+    line-height:1;cursor:pointer}
+  .rec-drawer-close:hover{background:rgba(255,255,255,.22);color:#fff}
+  .rec-drawer-body{flex:1;overflow-y:auto;padding:12px 14px 18px}
+  .rec-block{padding:8px 0 2px}
+  .rec-block + .rec-block{margin-top:10px;border-top:1px solid rgba(255,255,255,.07);padding-top:14px}
+  .rec-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+  .rec-head .lbl{margin:0}
+  .rec-clear{font-family:inherit;border:1px solid rgba(255,140,120,.25);
+    background:rgba(255,140,120,.12);color:#ffb4a2;font-size:11px;font-weight:700;
+    padding:4px 7px;border-radius:7px;cursor:pointer}
+  .rec-clear:hover{background:rgba(255,140,120,.22)}
+  .rec-list{display:flex;flex-direction:column;gap:6px;max-height:240px;overflow-y:auto;
+    padding-right:6px;scrollbar-gutter:stable;scrollbar-width:thin}
+  .rec-empty{font-size:12px;color:#8ea3b7;padding:3px 0}
+  .rec-item{background:rgba(0,0,0,.17);border:1px solid rgba(255,255,255,.07);
+    border-radius:10px;padding:7px 8px}
+  .rec-meta{font-size:11.5px;color:#9fb3c8;line-height:1.55}
+  .rec-meta b{color:#f3e4c3}
+  .rec-btns{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
+  .rec-btns button{font-family:inherit;border:1px solid rgba(255,255,255,.12);
+    background:rgba(255,255,255,.08);color:#cfdcea;font-size:11px;font-weight:700;
+    padding:4px 7px;border-radius:7px;cursor:pointer}
+  .rec-btns button:hover{background:rgba(255,255,255,.17)}
+  .rec-btns button.pin{background:rgba(127,215,255,.14);border-color:rgba(127,215,255,.28);color:#a8d8ff}
+  .rec-btns button.danger{background:rgba(255,140,120,.12);border-color:rgba(255,140,120,.25);color:#ffb4a2}
   main{flex:1;display:flex;gap:14px;padding:0 18px 18px;min-height:0}
   .board-wrap{position:relative;flex:1 1 auto;min-width:0;min-height:0}
   canvas{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:block;
@@ -238,6 +283,7 @@
   <div class="head-right">
     <a class="tut-link practice" href="go-practice.html">死活题 · 打谱</a>
     <a class="tut-link" href="go-tutorial.html" target="_blank">围棋入门教程</a>
+    <button class="rec-entry" id="btnRecords" type="button">棋谱记录 <span class="rec-badge" id="recBadge">0</span></button>
     <div class="sizes" id="sizes">
       <button data-size="9" class="on">9 路</button>
       <button data-size="13">13 路</button>
@@ -345,6 +391,30 @@
   </aside>
 </main>
 
+<div class="rec-scrim" id="recScrim"></div>
+<aside class="rec-drawer" id="recDrawer">
+  <div class="rec-drawer-head">
+    <span>棋谱记录</span>
+    <button class="rec-drawer-close" id="recDrawerClose" type="button">×</button>
+  </div>
+  <div class="rec-drawer-body">
+    <div class="rec-block">
+      <div class="rec-head">
+        <div class="lbl">自动保存（最近 10 盘）</div>
+        <button class="rec-clear" id="idxRecClearAuto" type="button">清空</button>
+      </div>
+      <div class="rec-list" id="idxRecAutoList"></div>
+    </div>
+    <div class="rec-block">
+      <div class="rec-head">
+        <div class="lbl">长期保存（最多 5 盘）</div>
+        <button class="rec-clear" id="idxRecClearSaved" type="button">清空</button>
+      </div>
+      <div class="rec-list" id="idxRecSavedList"></div>
+    </div>
+  </div>
+</aside>
+
 <div class="modal" id="modal">
   <div class="modal-card">
     <div class="modal-icon" id="modalIcon">★</div>
@@ -369,6 +439,7 @@ var EMPTY = 0, BLACK = 1, WHITE = 2;
 var LS_KEY = 'weiqi.boardSize';
 var LS_SIDE_KEY = 'weiqi.humanColor';
 var LS_AUTO_RECORDS_KEY = 'weiqi.autoRecords';
+var LS_SAVED_RECORDS_KEY = 'weiqi.savedRecords';
 
 function loadHumanColor() {
   try {
@@ -1701,6 +1772,15 @@ var coachGrade = document.getElementById('coachGrade');
 var coachTitle = document.getElementById('coachTitle');
 var coachBody  = document.getElementById('coachBody');
 var coachToggle= document.getElementById('coachToggle');
+var btnRecords = document.getElementById('btnRecords');
+var recBadge   = document.getElementById('recBadge');
+var recDrawer  = document.getElementById('recDrawer');
+var recDrawerClose = document.getElementById('recDrawerClose');
+var recScrim   = document.getElementById('recScrim');
+var idxRecAutoList = document.getElementById('idxRecAutoList');
+var idxRecSavedList = document.getElementById('idxRecSavedList');
+var idxRecClearAuto = document.getElementById('idxRecClearAuto');
+var idxRecClearSaved = document.getElementById('idxRecClearSaved');
 
 var toastTimer = null;
 function toast(msg) {
@@ -1909,10 +1989,228 @@ function saveAutoGameRecord(reason, sc) {
     list.unshift(rec);
     if (list.length > 10) list = list.slice(0, 10);
     localStorage.setItem(LS_AUTO_RECORDS_KEY, JSON.stringify(list));
+    renderIndexRecords();
   } catch (e) {
     console.warn('自动保存棋谱失败', e);
   }
 }
+
+function idxReadRecords(key) {
+  try {
+    var raw = localStorage.getItem(key);
+    if (raw == null) return [];
+    var list = JSON.parse(raw);
+    if (Array.isArray(list)) return list;
+  } catch (e) {}
+  return [];
+}
+
+function idxWriteRecords(key, list) {
+  try {
+    localStorage.setItem(key, JSON.stringify(list));
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function idxPad(n) { return n < 10 ? '0' + n : String(n); }
+
+function idxRecordDate(ts) {
+  var d = new Date(ts || Date.now());
+  return d.getFullYear() + '-' + idxPad(d.getMonth() + 1) + '-' + idxPad(d.getDate()) +
+         ' ' + idxPad(d.getHours()) + ':' + idxPad(d.getMinutes());
+}
+
+function idxRecordClock(ms) {
+  var total = Math.max(0, Math.floor((ms || 0) / 1000));
+  var h = Math.floor(total / 3600);
+  var m = Math.floor((total % 3600) / 60);
+  var sec = total % 60;
+  return h > 0 ? (h + ':' + idxPad(m) + ':' + idxPad(sec)) : (idxPad(m) + ':' + idxPad(sec));
+}
+
+function idxRecordResult(rec) {
+  if (rec.winner === 'B') return t('黑棋胜');
+  if (rec.winner === 'W') return t('白棋胜');
+  return t('和棋');
+}
+
+function idxRecordMeta(rec) {
+  var ts = rec.startedAt || rec.endedAt || Date.now();
+  return t('{size} 路 · {date} · 总用时 {dur}',
+    { size: rec.size || 9, date: idxRecordDate(ts), dur: idxRecordClock(rec.durationMs || 0) });
+}
+
+function idxEscapeSGF(v) {
+  return String(v).replace(/\\/g, '\\\\').replace(/\]/g, '\\]');
+}
+
+function idxSgfCoord(x, y) {
+  return String.fromCharCode(97 + x) + String.fromCharCode(97 + y);
+}
+
+function idxRecordToSGF(rec) {
+  var sgf = '(;GM[1]FF[4]CA[UTF-8]SZ[' + (rec.size || 9) + ']';
+  sgf += 'GN[' + idxEscapeSGF(idxRecordResult(rec) + ' ' + idxRecordMeta(rec)) + ']';
+  sgf += 'PB[Black]PW[White]';
+  var setup = rec.setup || [];
+  if (setup.length > 0) {
+    sgf += 'AB';
+    for (var s = 0; s < setup.length; s++) {
+      sgf += '[' + idxSgfCoord(setup[s][0], setup[s][1]) + ']';
+    }
+  }
+  if (rec.handicap) sgf += 'HA[' + rec.handicap + ']';
+  if (rec.komi) sgf += 'KM[' + rec.komi + ']';
+  if (rec.startedAt) sgf += 'DT[' + idxRecordDate(rec.startedAt).slice(0, 10) + ']';
+  if (rec.winner === 'B') sgf += 'RE[B+]';
+  else if (rec.winner === 'W') sgf += 'RE[W+]';
+  else sgf += 'RE[0]';
+  var moves = rec.moves || [];
+  for (var i = 0; i < moves.length; i++) {
+    var m = moves[i];
+    sgf += ';' + (m.color === BLACK ? 'B' : 'W') + '[' + (m.pass ? '' : idxSgfCoord(m.x, m.y)) + ']';
+    if (m.ms != null) sgf += 'C[用时 ' + Math.max(0, Math.round(m.ms / 1000)) + 's]';
+  }
+  sgf += ')';
+  return sgf;
+}
+
+function idxDownloadSGF(rec) {
+  var blob = new Blob([idxRecordToSGF(rec)], { type: 'application/x-go-sgf' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'weiqi-' + (rec.size || 9) + 'x' + (rec.size || 9) + '-' +
+               idxRecordDate(rec.startedAt || rec.endedAt).replace(/[: ]/g, '-') + '.sgf';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+}
+
+function openRecordInKifu(rec) {
+  try { sessionStorage.setItem('weiqi.openRecord', JSON.stringify(rec)); } catch (e) {}
+  window.location.href = 'go-practice.html';
+}
+
+function idxPinRecord(id) {
+  var auto = idxReadRecords(LS_AUTO_RECORDS_KEY);
+  var saved = idxReadRecords(LS_SAVED_RECORDS_KEY);
+  var rec = null;
+  for (var i = 0; i < auto.length; i++) {
+    if (auto[i].id === id) rec = auto[i];
+  }
+  if (rec == null) return;
+  for (var j = 0; j < saved.length; j++) {
+    if (saved[j].id === id) { alert(t('这盘棋已经在长期保存里了。')); return; }
+  }
+  if (saved.length >= 5) {
+    alert(t('长期保存最多 5 个，请先删掉一个。'));
+    return;
+  }
+  saved.unshift(JSON.parse(JSON.stringify(rec)));
+  if (idxWriteRecords(LS_SAVED_RECORDS_KEY, saved)) renderIndexRecords();
+}
+
+function idxUnpinRecord(id) {
+  var saved = idxReadRecords(LS_SAVED_RECORDS_KEY);
+  var out = [];
+  for (var i = 0; i < saved.length; i++) {
+    if (saved[i].id === id) continue;
+    out.push(saved[i]);
+  }
+  if (idxWriteRecords(LS_SAVED_RECORDS_KEY, out)) renderIndexRecords();
+}
+
+function idxClearAuto() {
+  if (confirm(t('确定清空自动保存的棋谱吗？')) === false) return;
+  if (idxWriteRecords(LS_AUTO_RECORDS_KEY, [])) renderIndexRecords();
+}
+
+function idxClearSaved() {
+  if (confirm(t('确定清空长期保存的棋谱吗？')) === false) return;
+  if (idxWriteRecords(LS_SAVED_RECORDS_KEY, [])) renderIndexRecords();
+}
+
+function idxAddButton(box, label, cls, fn) {
+  var b = document.createElement('button');
+  b.textContent = label;
+  if (cls) b.className = cls;
+  b.onclick = fn;
+  box.appendChild(b);
+}
+
+function idxRenderList(box, list, saved) {
+  if (box == null) return;
+  box.innerHTML = '';
+  if (list.length === 0) {
+    var empty = document.createElement('div');
+    empty.className = 'rec-empty';
+    empty.textContent = t(saved ? '还没有长期保存的棋谱' : '还没有自动保存的棋谱');
+    box.appendChild(empty);
+    return;
+  }
+  for (var i = 0; i < list.length; i++) {
+    var rec = list[i];
+    var item = document.createElement('div');
+    item.className = 'rec-item';
+    var meta = document.createElement('div');
+    meta.className = 'rec-meta';
+    var reason = rec.reason ? '<div>' + t('结束原因：{reason}', { reason: t(rec.reason) }) + '</div>' : '';
+    meta.innerHTML = '<div><b>' + idxRecordResult(rec) + '</b> · ' + idxRecordMeta(rec) + '</div>' + reason;
+    item.appendChild(meta);
+    var btns = document.createElement('div');
+    btns.className = 'rec-btns';
+    if (saved) {
+      idxAddButton(btns, t('取消长期'), 'danger', (function (r) {
+        return function () { idxUnpinRecord(r.id); };
+      })(rec));
+    } else {
+      idxAddButton(btns, t('长期保存'), 'pin', (function (r) {
+        return function () { idxPinRecord(r.id); };
+      })(rec));
+    }
+    idxAddButton(btns, t('打谱查看'), '', (function (r) {
+      return function () { openRecordInKifu(r); };
+    })(rec));
+    idxAddButton(btns, t('导出 SGF'), '', (function (r) {
+      return function () { idxDownloadSGF(r); };
+    })(rec));
+    item.appendChild(btns);
+    box.appendChild(item);
+  }
+}
+
+function renderIndexRecords() {
+  var auto = idxReadRecords(LS_AUTO_RECORDS_KEY);
+  var saved = idxReadRecords(LS_SAVED_RECORDS_KEY);
+  if (recBadge) recBadge.textContent = String(auto.length);
+  idxRenderList(idxRecAutoList, auto, false);
+  idxRenderList(idxRecSavedList, saved, true);
+}
+
+function toggleRecordDrawer() {
+  recDrawer.classList.toggle('show');
+  recScrim.classList.toggle('show');
+}
+
+function closeRecordDrawer() {
+  recDrawer.classList.remove('show');
+  recScrim.classList.remove('show');
+}
+
+btnRecords.addEventListener('click', toggleRecordDrawer);
+recDrawerClose.addEventListener('click', closeRecordDrawer);
+recScrim.addEventListener('click', closeRecordDrawer);
+idxRecClearAuto.addEventListener('click', idxClearAuto);
+idxRecClearSaved.addEventListener('click', idxClearSaved);
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape') closeRecordDrawer();
+});
+window.addEventListener('focus', renderIndexRecords);
+renderIndexRecords();
 
 function updateCountUI(sc) {
   if (!sc) return;

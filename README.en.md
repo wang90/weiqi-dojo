@@ -25,6 +25,7 @@ Originally written for parents who are teaching their kids from scratch.
 - **Score estimate**: tap "Score estimate" to see the current count and territory marked on the board; midgame estimates are approximate, so dead stones should be captured first
 - **Computer auto-resign**: in the late game, if the computer judges itself clearly behind and the position is largely settled, it resigns instead of thinking on
 - **Move timer**: a rotating stopwatch beside the board, collapsed by default; expanding it shows per-move times in a fixed-height auto-scrolling list, plus total game time
+- **Game records**: the "Game records" button on the home page opens a collapsible side drawer for auto-saved and long-term records
 - **Remembers your board size** between visits (stored locally in your browser, nothing is uploaded)
 
 ### Life & Death problems

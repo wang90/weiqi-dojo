@@ -231,6 +231,14 @@ function click(ctx, x, y) {
      '保存了总用时和胜负结果');
 
   console.log('');
+  console.log('--- 首页棋谱入口 ---');
+  ok(ctx.byId['recBadge'].textContent === '1', '棋谱入口显示自动保存数量');
+  ctx.byId['btnRecords']._ls.click[0]();
+  ok(ctx.byId['recDrawer'].classList.contains('show'), '可以打开棋谱侧边栏');
+  ctx.byId['recDrawerClose']._ls.click[0]();
+  ok(ctx.byId['recDrawer'].classList.contains('show') === false, '可以收起棋谱侧边栏');
+
+  console.log('');
   console.log(fails === 0 ? '★ 全部通过' : '★ ' + fails + ' 项失败');
   process.exit(fails === 0 ? 0 : 1);
 })();
