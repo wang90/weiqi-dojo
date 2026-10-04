@@ -210,7 +210,7 @@ function click(ctx, x, y) {
   G.startGame();
   await new Promise(function (r) { setTimeout(r, 1600); });
   ok(G.game.moveCount === 1 && G.game.turn === 2, '玩家执白时电脑执黑先下');
-  click(ctx, 2, 2);
+  click(ctx, 4, 4);
   await new Promise(function (r) { setTimeout(r, 1600); });
   ok(G.game.moveCount === 3 && G.game.turn === 2, '玩家执白可以落子，电脑继续执黑回应');
   G.humanColor = 1;

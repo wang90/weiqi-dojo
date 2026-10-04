@@ -1028,6 +1028,8 @@ var PROBLEMS = [
 ];
 
 var SAMPLE_SGF = "(;GM[1]FF[4]CA[UTF-8]SZ[9]GN[电脑自战一局]PB[电脑(黑)]PW[电脑(白)];B[ee];W[cc];B[gg];W[cg];B[gc];W[dc];B[fc];W[ec];B[fd];W[dd];B[ed];W[cd];B[de];W[ce];B[df];W[cf];B[fe];W[db];B[fb];W[eb];B[dg];W[bf];B[ef];W[ch];B[eg];W[dh];B[fg];W[eh];B[gh];W[fh];B[ff];W[bg];B[gd];W[cb];B[ge];W[be];B[gf];W[bh];B[gb];W[bb];B[hd];W[bd];B[hc];W[ca];B[hg];W[ba];B[hf];W[bc];B[he];W[da];B[hb];W[ea];B[fa];W[ae];B[ha];W[af];B[id];W[ad];B[hh];W[fi];B[hi];W[ei];B[gi];W[di];B[ic];W[ag];B[ib];W[ah];B[ie];W[ac];B[if];W[aa];B[ig];W[ai];B[ih];W[bi];B[];W[])";
+var SAMPLE_SGF_13 = "(;GM[1]FF[4]CA[UTF-8]SZ[13]GN[13 路布局示例]PB[黑方]PW[白方];B[dd];W[jd];B[dj];W[jj];B[gg];W[cf];B[fc];W[jf];B[dg];W[jg];B[df];W[fd])";
+var SAMPLE_SGF_19 = "(;GM[1]FF[4]CA[UTF-8]SZ[19]GN[19 路星位布局]PB[黑方]PW[白方];B[pd];W[dp];B[pp];W[dd];B[jj];W[dj];B[pj];W[jd];B[jp];W[qf];B[nc];W[cf])";
 
 /* =====================================================================
    1. 棋盘基础工具（和主程序一致）
@@ -1717,10 +1719,17 @@ drop.addEventListener('drop', function (e) {
 /* 内置示例 */
 (function () {
   var box = document.getElementById('kSamples');
-  var b = document.createElement('button');
-  b.textContent = t('电脑自战一局（9 路 · 78 手）');
-  b.onclick = function () { kifuLoad(SAMPLE_SGF, '电脑自战（9 路）'); };
-  box.appendChild(b);
+  var list = [
+    { label: '电脑自战一局（9 路 · 78 手）', name: '电脑自战（9 路）', sgf: SAMPLE_SGF },
+    { label: '13 路布局示例（12 手）', name: '13 路布局示例', sgf: SAMPLE_SGF_13 },
+    { label: '19 路星位布局（12 手）', name: '19 路星位布局', sgf: SAMPLE_SGF_19 }
+  ];
+  list.forEach(function (it) {
+    var b = document.createElement('button');
+    b.textContent = t(it.label);
+    b.onclick = function () { kifuLoad(it.sgf, t(it.name)); };
+    box.appendChild(b);
+  });
 })();
 
 /* =====================================================================
