@@ -122,9 +122,11 @@ function click(ctx, x, y) {
   ok(/^\d{2}:\d{2}$/.test(ctx.byId['totalTime'].textContent), '总用时显示为时钟格式');
   ok(/^\d+(\.\d+)?s$|^\d{2}:\d{2}$/.test(ctx.byId['lastMoveTime'].textContent), '上一步用时已显示');
   ok(ctx.byId['railMoveTimes'].innerHTML.indexOf('rail-move-row') >= 0, '棋盘边计时条显示每手用时');
+  ok(ctx.byId['railMoveTimes'].innerHTML.indexOf('mt-dot') >= 0, '左侧每手时间前有黑白棋子标记');
+  ok(ctx.byId['moveTimes'].innerHTML.indexOf('mt-dot') >= 0, '右侧每手时间前有黑白棋子标记');
   ok(/^\d{2}:\d{2}$/.test(ctx.byId['railTotalTime'].textContent), '棋盘边计时条显示总用时');
   ok(ctx.byId['stopwatchSide'].textContent === '黑棋', '秒表跟随当前手方');
-  ok(/^\d{2}:\d{2}\.\d$/.test(ctx.byId['stopwatchTime'].textContent), '秒表显示累计用时');
+  ok(/^\d{2}:\d{2}$/.test(ctx.byId['stopwatchTime'].textContent), '秒表显示累计用时（精确到秒）');
   ok(ctx.byId['timeRail'].classList.contains('collapsed'), '左侧用时默认收起');
   ctx.byId['railToggle']._ls.click[0]();
   ok(ctx.byId['timeRail'].classList.contains('collapsed') === false, '点击展开左侧用时明细');

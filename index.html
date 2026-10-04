@@ -68,8 +68,8 @@
     font-size:14px;font-weight:800;color:#f3e4c3;text-align:center}
   .time-row{display:flex;align-items:center;gap:8px;font-size:13px;color:#b9c9d8;padding:3px 0}
   .time-row b{margin-left:auto;color:#f3e4c3;font-size:14px;font-variant-numeric:tabular-nums}
-  .move-times{height:80px;max-height:80px;overflow-y:auto;margin-top:5px;padding-top:5px;
-    border-top:1px solid rgba(255,255,255,.07)}
+  .move-times{height:80px;max-height:80px;overflow-y:auto;margin-top:5px;padding:5px 6px 0 0;
+    border-top:1px solid rgba(255,255,255,.07);scrollbar-gutter:stable;scrollbar-width:thin}
   .move-time-row{display:flex;align-items:center;font-size:12px;color:#9fb3c8;padding:2px 0}
   .move-time-row b{margin-left:auto;color:#cfdcea;font-weight:700;font-variant-numeric:tabular-nums}
   .lbl{font-size:12px;color:#8ea3b7;margin-bottom:8px;font-weight:700;letter-spacing:.5px}
@@ -117,12 +117,22 @@
     font-variant-numeric:tabular-nums}
   .rail-moves{display:flex;flex-direction:column;gap:1px;overflow-y:auto;
     flex:0 0 80px;height:80px;max-height:80px;min-height:0;
-    pointer-events:auto;scrollbar-width:thin}
+    padding-right:6px;pointer-events:auto;scrollbar-gutter:stable;scrollbar-width:thin}
   .time-rail.collapsed .rail-moves{display:none}
   .rail-move-row{display:flex;align-items:center;font-size:11px;color:#9fb3c8;
     padding:1px 0;white-space:nowrap}
   .rail-move-row b{margin-left:auto;color:#cfdcea;font-weight:700;
     font-variant-numeric:tabular-nums}
+  .mt-dot{display:inline-block;width:9px;height:9px;border-radius:50%;
+    margin-right:5px;vertical-align:-1px;flex:0 0 auto;box-shadow:inset 0 -1px 2px rgba(0,0,0,.45)}
+  .mt-dot.b{background:radial-gradient(circle at 34% 30%,#777,#080808)}
+  .mt-dot.w{background:radial-gradient(circle at 34% 30%,#fff,#c9c2b3);
+    border:1px solid rgba(80,60,30,.4)}
+  .side-stone{display:inline-block;width:11px;height:11px;border-radius:50%;flex:0 0 auto;
+    box-shadow:inset 0 -1px 3px rgba(0,0,0,.45),0 1px 2px rgba(0,0,0,.35)}
+  .side-stone.b{background:radial-gradient(circle at 34% 30%,#777,#080808)}
+  .side-stone.w{background:radial-gradient(circle at 34% 30%,#fff,#c9c2b3);
+    border:1px solid rgba(80,60,30,.4)}
   /* 窄屏：变成棋盘上方的横向计时条 */
   .time-rail.rail-top{left:6px;right:6px;flex-direction:row;align-items:center;gap:8px;
     padding:6px 8px;border-radius:10px}
@@ -133,7 +143,8 @@
   .time-rail.rail-top .stopwatch-total{flex:0 0 auto;margin-left:0}
   .time-rail.rail-top .rail-total{flex:0 0 auto}
   .time-rail.rail-top .rail-moves{flex:1 1 auto;flex-direction:row;overflow-x:auto;
-    overflow-y:hidden;height:30px;max-height:30px;gap:0}
+    overflow-y:hidden;height:30px;max-height:30px;gap:0;padding:0 0 3px;
+    scrollbar-gutter:auto}
   .time-rail.rail-top .rail-move-row{flex:0 0 auto;gap:3px;padding:0 7px;
     border-right:1px solid rgba(255,255,255,.08)}
   .time-rail.rail-top .rail-move-row:last-child{border-right:0}
@@ -241,7 +252,7 @@
     <div class="time-rail collapsed" id="timeRail">
       <button class="rail-toggle" id="railToggle" type="button" aria-expanded="false">▸</button>
       <div class="stopwatch" id="stopwatch">
-        <div class="stopwatch-side"><span class="sw-dot"></span><span id="stopwatchSide">黑棋</span></div>
+        <div class="stopwatch-side"><span class="side-stone b" id="stopwatchStone"></span><span id="stopwatchSide">黑棋</span><span class="sw-dot"></span></div>
         <div class="stopwatch-time" id="stopwatchTime">00:00.0</div>
         <div class="stopwatch-total"><span>总用时</span><b id="railTotalTime">00:00</b></div>
       </div>
@@ -1662,6 +1673,7 @@ var timeRail = document.getElementById('timeRail');
 var railToggle = document.getElementById('railToggle');
 var stopwatch = document.getElementById('stopwatch');
 var stopwatchSide = document.getElementById('stopwatchSide');
+var stopwatchStone = document.getElementById('stopwatchStone');
 var stopwatchTime = document.getElementById('stopwatchTime');
 var railTotalTime = document.getElementById('railTotalTime');
 var railMoveTimesEl = document.getElementById('railMoveTimes');
@@ -1707,18 +1719,13 @@ function formatClock(ms) {
 }
 
 function formatMoveTime(ms) {
-  if (ms < 10000) return (ms / 1000).toFixed(1) + "s";
-  return formatClock(ms);
+  var secs = Math.max(0, Math.round(ms / 1000));
+  if (secs < 60) return secs + 's';
+  return formatClock(secs * 1000);
 }
 
 function formatStopwatch(ms) {
-  var totalTenths = Math.floor(Math.max(0, ms) / 100);
-  var tenths = totalTenths % 10;
-  var totalSec = Math.floor(totalTenths / 10);
-  var h = Math.floor(totalSec / 3600);
-  var m = Math.floor((totalSec % 3600) / 60);
-  var s = totalSec % 60;
-  return (h > 0 ? h + ':' + pad2(m) : pad2(m)) + ':' + pad2(s) + '.' + tenths;
+  return formatClock(ms);
 }
 
 function sideTotalMs(color) {
@@ -1743,10 +1750,11 @@ function renderMoveTimes() {
   for (var i = 0; i < moveTimeList.length; i++) {
     var m = moveTimeList[i];
     var name = t(m.color === BLACK ? '黑' : '白');
+    var dot = '<span class="mt-dot ' + (m.color === BLACK ? 'b' : 'w') + '"></span>';
     var timeText = formatMoveTime(m.ms);
-    html += '<div class="move-time-row"><span>' + m.no + '. ' +
+    html += '<div class="move-time-row"><span>' + dot + m.no + '. ' +
             name + '</span><b>' + timeText + '</b></div>';
-    railHtml += '<div class="rail-move-row"><span>' + m.no + name +
+    railHtml += '<div class="rail-move-row"><span>' + dot + m.no + name +
                 '</span><b>' + timeText + '</b></div>';
   }
   if (moveTimesEl) {
@@ -1780,6 +1788,7 @@ function updateClockUI() {
     var lastColor = moveTimeList.length ? moveTimeList[moveTimeList.length - 1].color : game.turn;
     var swColor = game.over ? lastColor : game.turn;
     stopwatchSide.textContent = t(swColor === BLACK ? '黑棋' : '白棋');
+    if (stopwatchStone) stopwatchStone.className = 'side-stone ' + (swColor === BLACK ? 'b' : 'w');
     stopwatchTime.textContent = formatStopwatch(sideTotalMs(swColor));
     stopwatch.classList.toggle('running', clockRunning && game.over === false);
   }
