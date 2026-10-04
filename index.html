@@ -368,6 +368,7 @@ var EMPTY = 0, BLACK = 1, WHITE = 2;
 /* ---- 本地存储：记住用户上次用的棋盘路数 ---- */
 var LS_KEY = 'weiqi.boardSize';
 var LS_SIDE_KEY = 'weiqi.humanColor';
+var LS_AUTO_RECORDS_KEY = 'weiqi.autoRecords';
 
 function loadHumanColor() {
   try {
@@ -1680,6 +1681,7 @@ var railMoveTimesEl = document.getElementById('railMoveTimes');
 var clockStartAt = 0, baseElapsed = 0, turnStartedAt = 0;
 var clockRunning = false, clockTimer = null;
 var moveTimeList = [], lastMoveMs = 0;
+var gameStartedAt = 0, gameRecordSaved = false;
 var msgEl      = document.getElementById('msg');
 var hzBox      = document.getElementById('hz');
 var hzHint     = document.getElementById('hzHint');
@@ -1805,6 +1807,8 @@ function startClock() {
   clockRunning = true;
   moveTimeList = [];
   lastMoveMs = 0;
+  gameStartedAt = clockStartAt;
+  gameRecordSaved = false;
   renderMoveTimes();
   updateClockUI();
   clockTimer = setInterval(updateClockUI, 100);
@@ -1826,10 +1830,17 @@ function resumeClock() {
   if (clockTimer === null) clockTimer = setInterval(updateClockUI, 100);
 }
 
-function recordMoveTime(color, startedAt) {
+function recordMoveTime(color, startedAt, x, y, pass) {
   var ms = Math.max(0, Date.now() - startedAt);
   lastMoveMs = ms;
-  moveTimeList.push({ no: game.moveCount, color: color, ms: ms });
+  moveTimeList.push({
+    no: game.moveCount,
+    color: color,
+    ms: ms,
+    x: (x == null ? -1 : x),
+    y: (y == null ? -1 : y),
+    pass: pass === true
+  });
   turnStartedAt = Date.now();
   renderMoveTimes();
   updateClockUI();
@@ -1845,6 +1856,62 @@ function pruneMoveTimesAfterUndo() {
   turnStartedAt = Date.now();
   renderMoveTimes();
   updateClockUI();
+}
+
+function buildGameRecord(reason, sc) {
+  var winner = sc.diff > 0.25 ? 'B' : (sc.diff < -0.25 ? 'W' : 'D');
+  var setup = [];
+  if (game.handicap > 0) {
+    var hpts = (HANDICAP_POINTS[game.size] || {})[game.handicap] || [];
+    for (var h = 0; h < hpts.length; h++) setup.push([hpts[h][0], hpts[h][1]]);
+  }
+  var rec = {
+    id: String(Date.now()) + '-' + Math.random().toString(36).slice(2, 8),
+    startedAt: gameStartedAt ? gameStartedAt : (Date.now() - getTotalMs()),
+    endedAt: Date.now(),
+    durationMs: Math.round(getTotalMs()),
+    size: game.size,
+    handicap: game.handicap,
+    komi: KOMI,
+    mode: mode,
+    humanColor: humanColor,
+    reason: reason,
+    winner: winner,
+    black: sc.black,
+    white: sc.white,
+    setup: setup,
+    moves: []
+  };
+  for (var i = 0; i < moveTimeList.length; i++) {
+    var m = moveTimeList[i];
+    rec.moves.push({
+      no: m.no,
+      color: m.color,
+      x: (m.x == null ? -1 : m.x),
+      y: (m.y == null ? -1 : m.y),
+      pass: m.pass === true,
+      ms: Math.round(m.ms)
+    });
+  }
+  return rec;
+}
+
+function saveAutoGameRecord(reason, sc) {
+  if (gameRecordSaved) return;
+  if (moveTimeList.length === 0) return;
+  gameRecordSaved = true;
+  var rec = buildGameRecord(reason, sc);
+  try {
+    var list = [];
+    var raw = localStorage.getItem(LS_AUTO_RECORDS_KEY);
+    if (raw) list = JSON.parse(raw);
+    if (Array.isArray(list) === false) list = [];
+    list.unshift(rec);
+    if (list.length > 10) list = list.slice(0, 10);
+    localStorage.setItem(LS_AUTO_RECORDS_KEY, JSON.stringify(list));
+  } catch (e) {
+    console.warn('自动保存棋谱失败', e);
+  }
 }
 
 function updateCountUI(sc) {
@@ -2047,15 +2114,19 @@ function scheduleAi() {
           if (myGen !== aiGen) return;           /* 这盘已经作废了 */
           var aiColor = game.turn;
           var aiStart = turnStartedAt;
+          var aiPass = mv ? false : true;
+          var aiX = mv ? mv.x : -1;
+          var aiY = mv ? mv.y : -1;
           var res = null;
           try {
             res = mv ? game.play(mv.x, mv.y) : game.pass();
           } catch (err) {
             console.error(err);
+            aiPass = true; aiX = -1; aiY = -1;
             res = game.pass();
           }
           aiThinking = false;
-          if (res && res.ok) recordMoveTime(aiColor, aiStart);
+          if (res && res.ok) recordMoveTime(aiColor, aiStart, aiX, aiY, aiPass);
           if (res && res.ok) playClick(res.captured > 0);
           refreshCount();
           render();
@@ -2084,7 +2155,7 @@ function humanPlay(x, y) {
   var res = game.play(x, y);
   if (!res.ok) { toast(res.reason); return; }
 
-  recordMoveTime(color, turnStart);
+  recordMoveTime(color, turnStart, x, y, false);
   playClick(res.captured > 0);
   hover = null;
   refreshCount();
@@ -2174,7 +2245,7 @@ btnPass.addEventListener('click', function () {
   var passColor = game.turn;
   var passStart = turnStartedAt;
   game.pass();
-  recordMoveTime(passColor, passStart);
+  recordMoveTime(passColor, passStart, -1, -1, true);
   refreshCount();
   render();
   updateUI();
@@ -2250,6 +2321,7 @@ function finishGame(reason) {
   updateUI();
 
   var sc = scorePosition(game.board, game.size);
+  saveAutoGameRecord(reason, sc);
   var diff = sc.diff;
   var blackWins = diff > 0;
   var icon, title, sub, cls;

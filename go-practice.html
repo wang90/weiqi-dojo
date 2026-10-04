@@ -72,6 +72,26 @@
     background:rgba(255,255,255,.06);color:#cfdcea;padding:9px 11px;border-radius:10px;font-size:13px;
     font-weight:600;cursor:pointer}
   .samples button:hover{background:rgba(255,255,255,.14)}
+  .rec-section{margin-top:2px}
+  .rec-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+  .rec-head .lbl{margin:0}
+  .rec-clear{font-family:inherit;border:1px solid rgba(255,140,120,.25);background:rgba(255,140,120,.12);
+    color:#ffb4a2;font-size:11px;font-weight:700;padding:4px 7px;border-radius:7px;cursor:pointer}
+  .rec-clear:hover{background:rgba(255,140,120,.22)}
+  .rec-list{max-height:150px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;
+    padding-right:6px;scrollbar-gutter:stable;scrollbar-width:thin}
+  .rec-empty{font-size:12px;color:#8ea3b7;padding:3px 0}
+  .rec-item{background:rgba(0,0,0,.17);border:1px solid rgba(255,255,255,.07);
+    border-radius:10px;padding:7px 8px}
+  .rec-meta{font-size:11.5px;color:#9fb3c8;line-height:1.55}
+  .rec-meta b{color:#f3e4c3}
+  .rec-btns{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
+  .rec-btns button{font-family:inherit;border:1px solid rgba(255,255,255,.12);
+    background:rgba(255,255,255,.08);color:#cfdcea;font-size:11px;font-weight:700;
+    padding:4px 7px;border-radius:7px;cursor:pointer}
+  .rec-btns button:hover{background:rgba(255,255,255,.17)}
+  .rec-btns button.pin{background:rgba(127,215,255,.14);border-color:rgba(127,215,255,.28);color:#a8d8ff}
+  .rec-btns button.danger{background:rgba(255,140,120,.12);border-color:rgba(255,140,120,.25);color:#ffb4a2}
 
   /* 全部完成弹窗 */
   .done-mask{position:fixed;inset:0;background:rgba(4,9,14,.76);-webkit-backdrop-filter:blur(6px);
@@ -187,6 +207,22 @@
       <div class="card">
         <div class="lbl">棋谱</div>
         <div class="kifu-list" id="kList">（还没有载入棋谱）</div>
+      </div>
+      <div class="card">
+        <div class="rec-section">
+          <div class="rec-head">
+            <div class="lbl">自动保存（最近 10 盘）</div>
+            <button class="rec-clear" id="recClearAuto">清空</button>
+          </div>
+          <div class="rec-list" id="recAutoList"></div>
+        </div>
+        <div class="rec-section" style="margin-top:12px">
+          <div class="rec-head">
+            <div class="lbl">长期保存（最多 5 盘）</div>
+            <button class="rec-clear" id="recClearSaved">清空</button>
+          </div>
+          <div class="rec-list" id="recSavedList"></div>
+        </div>
       </div>
     </aside>
   </section>
@@ -1731,6 +1767,229 @@ drop.addEventListener('drop', function (e) {
     box.appendChild(b);
   });
 })();
+
+/* =====================================================================
+   5b. 棋谱记录（浏览器本地存储）
+   ===================================================================== */
+var REC_AUTO_KEY = 'weiqi.autoRecords';
+var REC_SAVED_KEY = 'weiqi.savedRecords';
+var REC_AUTO_MAX = 10;
+var REC_SAVED_MAX = 5;
+
+function readRecords(key) {
+  try {
+    var raw = localStorage.getItem(key);
+    if (raw == null) return [];
+    var list = JSON.parse(raw);
+    if (Array.isArray(list)) return list;
+  } catch (e) {}
+  return [];
+}
+
+function writeRecords(key, list) {
+  try {
+    localStorage.setItem(key, JSON.stringify(list));
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function recordPad(n) { return n < 10 ? '0' + n : String(n); }
+
+function recordDate(ts) {
+  var d = new Date(ts || Date.now());
+  return d.getFullYear() + '-' + recordPad(d.getMonth() + 1) + '-' + recordPad(d.getDate()) +
+         ' ' + recordPad(d.getHours()) + ':' + recordPad(d.getMinutes());
+}
+
+function recordClock(ms) {
+  var total = Math.max(0, Math.floor((ms || 0) / 1000));
+  var h = Math.floor(total / 3600);
+  var m = Math.floor((total % 3600) / 60);
+  var sec = total % 60;
+  return h > 0 ? (h + ':' + recordPad(m) + ':' + recordPad(sec)) : (recordPad(m) + ':' + recordPad(sec));
+}
+
+function recordMoveTime(ms) {
+  var sec = Math.max(0, Math.round((ms || 0) / 1000));
+  return sec + 's';
+}
+
+function recordResult(rec) {
+  if (rec.winner === 'B') return t('黑棋胜');
+  if (rec.winner === 'W') return t('白棋胜');
+  return t('和棋');
+}
+
+function recordMeta(rec) {
+  var ts = rec.startedAt || rec.endedAt || Date.now();
+  return t('{size} 路 · {date} · 总用时 {dur}',
+    { size: rec.size || 9, date: recordDate(ts), dur: recordClock(rec.durationMs || 0) });
+}
+
+function escapeSGF(v) {
+  return String(v).replace(/\\/g, '\\\\').replace(/\]/g, '\\]');
+}
+
+function sgfCoord(x, y) {
+  return String.fromCharCode(97 + x) + String.fromCharCode(97 + y);
+}
+
+function recordToSGF(rec) {
+  var sgf = '(;GM[1]FF[4]CA[UTF-8]SZ[' + (rec.size || 9) + ']';
+  sgf += 'GN[' + escapeSGF(recordResult(rec) + ' ' + recordMeta(rec)) + ']';
+  sgf += 'PB[Black]PW[White]';
+  var setup = rec.setup || [];
+  if (setup.length > 0) {
+    sgf += 'AB';
+    for (var s = 0; s < setup.length; s++) {
+      sgf += '[' + sgfCoord(setup[s][0], setup[s][1]) + ']';
+    }
+  }
+  if (rec.handicap) sgf += 'HA[' + rec.handicap + ']';
+  if (rec.komi) sgf += 'KM[' + rec.komi + ']';
+  if (rec.startedAt) sgf += 'DT[' + recordDate(rec.startedAt).slice(0, 10) + ']';
+  if (rec.winner === 'B') sgf += 'RE[B+]';
+  else if (rec.winner === 'W') sgf += 'RE[W+]';
+  else sgf += 'RE[0]';
+
+  var moves = rec.moves || [];
+  for (var i = 0; i < moves.length; i++) {
+    var m = moves[i];
+    sgf += ';' + (m.color === BLACK ? 'B' : 'W') + '[' + (m.pass ? '' : sgfCoord(m.x, m.y)) + ']';
+    if (m.ms != null) sgf += 'C[用时 ' + recordMoveTime(m.ms) + ']';
+  }
+  sgf += ')';
+  return sgf;
+}
+
+function downloadRecordSGF(rec) {
+  var sgf = recordToSGF(rec);
+  var blob = new Blob([sgf], { type: 'application/x-go-sgf' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'weiqi-' + (rec.size || 9) + 'x' + (rec.size || 9) + '-' +
+               recordDate(rec.startedAt || rec.endedAt).replace(/[: ]/g, '-') + '.sgf';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+}
+
+function loadRecord(rec) {
+  kifuLoad(recordToSGF(rec), recordResult(rec) + ' · ' + recordMeta(rec));
+}
+
+function pinRecord(id) {
+  var auto = readRecords(REC_AUTO_KEY);
+  var saved = readRecords(REC_SAVED_KEY);
+  var rec = null;
+  for (var i = 0; i < auto.length; i++) {
+    if (auto[i].id === id) rec = auto[i];
+  }
+  if (rec == null) return;
+  for (var j = 0; j < saved.length; j++) {
+    if (saved[j].id === id) { alert(t('这盘棋已经在长期保存里了。')); return; }
+  }
+  if (saved.length >= REC_SAVED_MAX) {
+    alert(t('长期保存最多 5 个，请先删掉一个。'));
+    return;
+  }
+  saved.unshift(JSON.parse(JSON.stringify(rec)));
+  if (writeRecords(REC_SAVED_KEY, saved)) renderRecords();
+}
+
+function unpinRecord(id) {
+  var saved = readRecords(REC_SAVED_KEY);
+  var out = [];
+  for (var i = 0; i < saved.length; i++) {
+    if (saved[i].id !== id) out.push(saved[i]);
+  }
+  if (writeRecords(REC_SAVED_KEY, out)) renderRecords();
+}
+
+function clearAutoRecords() {
+  if (confirm(t('确定清空自动保存的棋谱吗？')) === false) return;
+  if (writeRecords(REC_AUTO_KEY, [])) renderRecords();
+}
+
+function clearSavedRecords() {
+  if (confirm(t('确定清空长期保存的棋谱吗？')) === false) return;
+  if (writeRecords(REC_SAVED_KEY, [])) renderRecords();
+}
+
+document.getElementById('recClearAuto').onclick = clearAutoRecords;
+document.getElementById('recClearSaved').onclick = clearSavedRecords;
+
+function addRecordButton(box, label, cls, fn) {
+  var b = document.createElement('button');
+  b.textContent = label;
+  if (cls) b.className = cls;
+  b.onclick = fn;
+  box.appendChild(b);
+}
+
+function renderRecordList(id, list, saved) {
+  var box = document.getElementById(id);
+  if (box == null) return;
+  box.innerHTML = '';
+  if (list.length === 0) {
+    var empty = document.createElement('div');
+    empty.className = 'rec-empty';
+    empty.textContent = t(saved ? '还没有长期保存的棋谱' : '还没有自动保存的棋谱');
+    box.appendChild(empty);
+    return;
+  }
+  for (var i = 0; i < list.length; i++) {
+    var rec = list[i];
+    var item = document.createElement('div');
+    item.className = 'rec-item';
+    var meta = document.createElement('div');
+    meta.className = 'rec-meta';
+    var line1 = document.createElement('div');
+    var strong = document.createElement('b');
+    strong.textContent = recordResult(rec);
+    line1.appendChild(strong);
+    line1.appendChild(document.createTextNode(' · ' + recordMeta(rec)));
+    meta.appendChild(line1);
+    if (rec.reason) {
+      var line2 = document.createElement('div');
+      line2.textContent = t('结束原因：{reason}', { reason: t(rec.reason) });
+      meta.appendChild(line2);
+    }
+    item.appendChild(meta);
+
+    var btns = document.createElement('div');
+    btns.className = 'rec-btns';
+    addRecordButton(btns, t('载入'), '', (function (r) {
+      return function () { loadRecord(r); };
+    })(rec));
+    if (saved) {
+      addRecordButton(btns, t('取消长期'), 'danger', (function (r) {
+        return function () { unpinRecord(r.id); };
+      })(rec));
+    } else {
+      addRecordButton(btns, t('长期保存'), 'pin', (function (r) {
+        return function () { pinRecord(r.id); };
+      })(rec));
+    }
+    addRecordButton(btns, t('导出 SGF'), '', (function (r) {
+      return function () { downloadRecordSGF(r); };
+    })(rec));
+    item.appendChild(btns);
+    box.appendChild(item);
+  }
+}
+
+function renderRecords() {
+  renderRecordList('recAutoList', readRecords(REC_AUTO_KEY), false);
+  renderRecordList('recSavedList', readRecords(REC_SAVED_KEY), true);
+}
+
+window.addEventListener('focus', renderRecords);
+renderRecords();
 
 /* =====================================================================
    6. 切换 + 尺寸

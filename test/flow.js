@@ -80,7 +80,7 @@ function boot() {
   var pageJs = html.match(/<script>([\s\S]*?)<\/script>/g).pop().replace(/^<script>|<\/script>$/g, '');
   vm.runInContext(pageJs, sb, { filename: 'index.html' });
 
-  return { sb: sb, board: board, byId: byId };
+  return { sb: sb, board: board, byId: byId, store: store };
 }
 
 function click(ctx, x, y) {
@@ -214,6 +214,21 @@ function click(ctx, x, y) {
   await new Promise(function (r) { setTimeout(r, 1600); });
   ok(G.game.moveCount === 3 && G.game.turn === 2, '玩家执白可以落子，电脑继续执黑回应');
   G.humanColor = 1;
+
+  console.log('');
+  console.log('--- 自动保存棋谱 ---');
+  G.startGame();
+  click(ctx, 4, 4);
+  await new Promise(function (r) { setTimeout(r, 1600); });
+  var movesBeforeSave = G.moveTimeList.length;
+  G.finishGame('手动结束');
+  var savedList = JSON.parse(ctx.store['weiqi.autoRecords'] || '[]');
+  ok(movesBeforeSave === 2, '自动保存前已记录 2 手');
+  ok(savedList.length >= 1, '终局后自动保存到本地存储');
+  ok(savedList[0].size === 9 && savedList[0].moves.length === movesBeforeSave,
+     '保存了棋盘大小和全部手数');
+  ok(typeof savedList[0].durationMs === 'number' && savedList[0].winner,
+     '保存了总用时和胜负结果');
 
   console.log('');
   console.log(fails === 0 ? '★ 全部通过' : '★ ' + fails + ' 项失败');

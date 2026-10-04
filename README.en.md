@@ -36,6 +36,7 @@ Originally written for parents who are teaching their kids from scratch.
 ### Game records (SGF)
 - **Load your own SGF files** — click to choose, or just drag the file in
 - **Built-in examples**: 9×9 self-play, 13×13 opening, and 19×19 star-point opening, one click to load
+- **Saved games**: the last 10 finished games are saved locally; keep up to 5 long-term, export SGF, and clear auto/long-term records separately
 - Playback: `|◀ ◀ ▶ ▶ ▶|` plus slow / mid / fast auto-play
 - Clickable move list, last move marked in red on the board
 - Handles variations (follows the main line), `AB`/`AW` setup stones and passes
