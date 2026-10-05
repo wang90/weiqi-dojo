@@ -219,6 +219,9 @@ function click(ctx, x, y) {
   console.log('--- 自动保存棋谱 ---');
   G.startGame();
   click(ctx, 4, 4);
+  var interimList = JSON.parse(ctx.store['weiqi.autoRecords'] || '[]');
+  ok(interimList.length >= 1 && interimList[0].over === false &&
+     interimList[0].moves.length === 1, '用户落子后立即保存当前棋谱');
   await new Promise(function (r) { setTimeout(r, 1600); });
   var movesBeforeSave = G.moveTimeList.length;
   G.finishGame('手动结束');
@@ -232,7 +235,8 @@ function click(ctx, x, y) {
 
   console.log('');
   console.log('--- 首页棋谱入口 ---');
-  ok(ctx.byId['recBadge'].textContent === '1', '棋谱入口显示自动保存数量');
+  ok(ctx.byId['recBadge'].textContent === String(savedList.length),
+     '棋谱入口显示自动保存数量');
   ctx.byId['btnRecords']._ls.click[0]();
   ok(ctx.byId['recDrawer'].classList.contains('show'), '可以打开棋谱侧边栏');
   ctx.byId['recDrawerClose']._ls.click[0]();

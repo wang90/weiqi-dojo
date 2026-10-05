@@ -1752,7 +1752,7 @@ var railMoveTimesEl = document.getElementById('railMoveTimes');
 var clockStartAt = 0, baseElapsed = 0, turnStartedAt = 0;
 var clockRunning = false, clockTimer = null;
 var moveTimeList = [], lastMoveMs = 0;
-var gameStartedAt = 0, gameRecordSaved = false;
+var gameStartedAt = 0, currentRecordId = null;
 var msgEl      = document.getElementById('msg');
 var hzBox      = document.getElementById('hz');
 var hzHint     = document.getElementById('hzHint');
@@ -1888,7 +1888,7 @@ function startClock() {
   moveTimeList = [];
   lastMoveMs = 0;
   gameStartedAt = clockStartAt;
-  gameRecordSaved = false;
+  currentRecordId = null;
   renderMoveTimes();
   updateClockUI();
   clockTimer = setInterval(updateClockUI, 100);
@@ -1924,6 +1924,7 @@ function recordMoveTime(color, startedAt, x, y, pass) {
   turnStartedAt = Date.now();
   renderMoveTimes();
   updateClockUI();
+  saveCurrentGameRecord('进行中', null, false);
 }
 
 function pruneMoveTimesAfterUndo() {
@@ -1938,15 +1939,18 @@ function pruneMoveTimesAfterUndo() {
   updateClockUI();
 }
 
-function buildGameRecord(reason, sc) {
-  var winner = sc.diff > 0.25 ? 'B' : (sc.diff < -0.25 ? 'W' : 'D');
+function buildGameRecord(reason, sc, over) {
+  var winner = '';
+  if (over && sc) {
+    winner = sc.diff > 0.25 ? 'B' : (sc.diff < -0.25 ? 'W' : 'D');
+  }
   var setup = [];
   if (game.handicap > 0) {
     var hpts = (HANDICAP_POINTS[game.size] || {})[game.handicap] || [];
     for (var h = 0; h < hpts.length; h++) setup.push([hpts[h][0], hpts[h][1]]);
   }
   var rec = {
-    id: String(Date.now()) + '-' + Math.random().toString(36).slice(2, 8),
+    id: currentRecordId ? currentRecordId : (String(Date.now()) + '-' + Math.random().toString(36).slice(2, 8)),
     startedAt: gameStartedAt ? gameStartedAt : (Date.now() - getTotalMs()),
     endedAt: Date.now(),
     durationMs: Math.round(getTotalMs()),
@@ -1957,8 +1961,9 @@ function buildGameRecord(reason, sc) {
     humanColor: humanColor,
     reason: reason,
     winner: winner,
-    black: sc.black,
-    white: sc.white,
+    over: over === true,
+    black: (over && sc) ? sc.black : null,
+    white: (over && sc) ? sc.white : null,
     setup: setup,
     moves: []
   };
@@ -1976,23 +1981,43 @@ function buildGameRecord(reason, sc) {
   return rec;
 }
 
-function saveAutoGameRecord(reason, sc) {
-  if (gameRecordSaved) return;
+function saveCurrentGameRecord(reason, sc, over) {
   if (moveTimeList.length === 0) return;
-  gameRecordSaved = true;
-  var rec = buildGameRecord(reason, sc);
+  var rec = buildGameRecord(reason, sc, over);
+  currentRecordId = rec.id;
   try {
     var list = [];
     var raw = localStorage.getItem(LS_AUTO_RECORDS_KEY);
     if (raw) list = JSON.parse(raw);
     if (Array.isArray(list) === false) list = [];
-    list.unshift(rec);
-    if (list.length > 10) list = list.slice(0, 10);
-    localStorage.setItem(LS_AUTO_RECORDS_KEY, JSON.stringify(list));
+    var out = [];
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].id === rec.id) continue;
+      out.push(list[i]);
+    }
+    out.unshift(rec);
+    if (out.length > 10) out = out.slice(0, 10);
+    localStorage.setItem(LS_AUTO_RECORDS_KEY, JSON.stringify(out));
+
+    var saved = idxReadRecords(LS_SAVED_RECORDS_KEY);
+    var changed = false;
+    for (var j = 0; j < saved.length; j++) {
+      if (saved[j].id === rec.id) {
+        saved[j] = JSON.parse(JSON.stringify(rec));
+        changed = true;
+      }
+    }
+    if (changed) idxWriteRecords(LS_SAVED_RECORDS_KEY, saved);
     renderIndexRecords();
   } catch (e) {
-    console.warn('自动保存棋谱失败', e);
+    console.warn('保存棋谱失败', e);
   }
+}
+
+function saveAbandonedGameRecord() {
+  if (game.over) return;
+  if (moveTimeList.length === 0) return;
+  saveCurrentGameRecord('未终局', null, true);
 }
 
 function idxReadRecords(key) {
@@ -2031,9 +2056,11 @@ function idxRecordClock(ms) {
 }
 
 function idxRecordResult(rec) {
+  if (rec.over === false) return t('进行中');
   if (rec.winner === 'B') return t('黑棋胜');
   if (rec.winner === 'W') return t('白棋胜');
-  return t('和棋');
+  if (rec.winner === 'D') return t('和棋');
+  return t('未终局');
 }
 
 function idxRecordMeta(rec) {
@@ -2066,7 +2093,8 @@ function idxRecordToSGF(rec) {
   if (rec.startedAt) sgf += 'DT[' + idxRecordDate(rec.startedAt).slice(0, 10) + ']';
   if (rec.winner === 'B') sgf += 'RE[B+]';
   else if (rec.winner === 'W') sgf += 'RE[W+]';
-  else sgf += 'RE[0]';
+  else if (rec.winner === 'D') sgf += 'RE[0]';
+  else sgf += 'RE[?]';
   var moves = rec.moves || [];
   for (var i = 0; i < moves.length; i++) {
     var m = moves[i];
@@ -2354,6 +2382,7 @@ function startGame() {
   clearTimeout(aiTimer);
   aiThinking = false;
   aiGen++;                       /* 作废还在跑的旧计算 */
+  saveAbandonedGameRecord();
   setCountVisible(false);
   game = new Game(game.size);
   if (handicap > 0) game.setupHandicap(handicap);
@@ -2508,6 +2537,7 @@ document.getElementById('sizes').addEventListener('click', function (e) {
   clearTimeout(aiTimer);
   aiThinking = false;
   aiGen++;
+  saveAbandonedGameRecord();
   var newSize = parseInt(btn.dataset.size, 10);
   saveSize(newSize);
   setCountVisible(false);
@@ -2619,7 +2649,7 @@ function finishGame(reason) {
   updateUI();
 
   var sc = scorePosition(game.board, game.size);
-  saveAutoGameRecord(reason, sc);
+  saveCurrentGameRecord(reason, sc, true);
   var diff = sc.diff;
   var blackWins = diff > 0;
   var icon, title, sub, cls;

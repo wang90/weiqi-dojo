@@ -1817,9 +1817,11 @@ function recordMoveTime(ms) {
 }
 
 function recordResult(rec) {
+  if (rec.over === false) return t('进行中');
   if (rec.winner === 'B') return t('黑棋胜');
   if (rec.winner === 'W') return t('白棋胜');
-  return t('和棋');
+  if (rec.winner === 'D') return t('和棋');
+  return t('未终局');
 }
 
 function recordMeta(rec) {
@@ -1852,7 +1854,8 @@ function recordToSGF(rec) {
   if (rec.startedAt) sgf += 'DT[' + recordDate(rec.startedAt).slice(0, 10) + ']';
   if (rec.winner === 'B') sgf += 'RE[B+]';
   else if (rec.winner === 'W') sgf += 'RE[W+]';
-  else sgf += 'RE[0]';
+  else if (rec.winner === 'D') sgf += 'RE[0]';
+  else sgf += 'RE[?]';
 
   var moves = rec.moves || [];
   for (var i = 0; i < moves.length; i++) {
