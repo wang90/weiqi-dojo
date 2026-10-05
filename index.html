@@ -2152,6 +2152,20 @@ function idxUnpinRecord(id) {
   if (idxWriteRecords(LS_SAVED_RECORDS_KEY, out)) renderIndexRecords();
 }
 
+function idxDeleteRecord(id) {
+  if (confirm(t('确定删除这盘自动保存的棋谱吗？')) === false) return;
+  var auto = idxReadRecords(LS_AUTO_RECORDS_KEY);
+  var out = [];
+  for (var i = 0; i < auto.length; i++) {
+    if (auto[i].id === id) continue;
+    out.push(auto[i]);
+  }
+  if (idxWriteRecords(LS_AUTO_RECORDS_KEY, out)) {
+    if (currentRecordId === id) currentRecordId = null;
+    renderIndexRecords();
+  }
+}
+
 function idxClearAuto() {
   if (confirm(t('确定清空自动保存的棋谱吗？')) === false) return;
   if (idxWriteRecords(LS_AUTO_RECORDS_KEY, [])) renderIndexRecords();
@@ -2198,6 +2212,9 @@ function idxRenderList(box, list, saved) {
     } else {
       idxAddButton(btns, t('长期保存'), 'pin', (function (r) {
         return function () { idxPinRecord(r.id); };
+      })(rec));
+      idxAddButton(btns, t('删除'), 'danger', (function (r) {
+        return function () { idxDeleteRecord(r.id); };
       })(rec));
     }
     idxAddButton(btns, t('打谱查看'), '', (function (r) {

@@ -1913,6 +1913,17 @@ function unpinRecord(id) {
   if (writeRecords(REC_SAVED_KEY, out)) renderRecords();
 }
 
+function deleteAutoRecord(id) {
+  if (confirm(t('确定删除这盘自动保存的棋谱吗？')) === false) return;
+  var auto = readRecords(REC_AUTO_KEY);
+  var out = [];
+  for (var i = 0; i < auto.length; i++) {
+    if (auto[i].id === id) continue;
+    out.push(auto[i]);
+  }
+  if (writeRecords(REC_AUTO_KEY, out)) renderRecords();
+}
+
 function clearAutoRecords() {
   if (confirm(t('确定清空自动保存的棋谱吗？')) === false) return;
   if (writeRecords(REC_AUTO_KEY, [])) renderRecords();
@@ -1976,6 +1987,9 @@ function renderRecordList(id, list, saved) {
     } else {
       addRecordButton(btns, t('长期保存'), 'pin', (function (r) {
         return function () { pinRecord(r.id); };
+      })(rec));
+      addRecordButton(btns, t('删除'), 'danger', (function (r) {
+        return function () { deleteAutoRecord(r.id); };
       })(rec));
     }
     addRecordButton(btns, t('导出 SGF'), '', (function (r) {

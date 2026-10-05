@@ -243,6 +243,14 @@ function click(ctx, x, y) {
   ok(ctx.byId['recDrawer'].classList.contains('show') === false, '可以收起棋谱侧边栏');
 
   console.log('');
+  console.log('--- 单条删除自动保存棋谱 ---');
+  var beforeDelete = JSON.parse(ctx.store['weiqi.autoRecords'] || '[]').length;
+  var deleteId = JSON.parse(ctx.store['weiqi.autoRecords'] || '[]')[0].id;
+  G.idxDeleteRecord(deleteId);
+  var afterDelete = JSON.parse(ctx.store['weiqi.autoRecords'] || '[]').length;
+  ok(afterDelete === beforeDelete - 1, '自动保存棋谱可以单独删除');
+
+  console.log('');
   console.log(fails === 0 ? '★ 全部通过' : '★ ' + fails + ' 项失败');
   process.exit(fails === 0 ? 0 : 1);
 })();
