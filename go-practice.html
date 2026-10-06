@@ -92,6 +92,7 @@
   .rec-btns button:hover{background:rgba(255,255,255,.17)}
   .rec-btns button.pin{background:rgba(127,215,255,.14);border-color:rgba(127,215,255,.28);color:#a8d8ff}
   .rec-btns button.danger{background:rgba(255,140,120,.12);border-color:rgba(255,140,120,.25);color:#ffb4a2}
+  .rec-btns button.del{margin-left:auto}
 
   /* 全部完成弹窗 */
   .done-mask{position:fixed;inset:0;background:rgba(4,9,14,.76);-webkit-backdrop-filter:blur(6px);
@@ -1988,13 +1989,15 @@ function renderRecordList(id, list, saved) {
       addRecordButton(btns, t('长期保存'), 'pin', (function (r) {
         return function () { pinRecord(r.id); };
       })(rec));
-      addRecordButton(btns, t('删除'), 'danger', (function (r) {
-        return function () { deleteAutoRecord(r.id); };
-      })(rec));
     }
     addRecordButton(btns, t('导出 SGF'), '', (function (r) {
       return function () { downloadRecordSGF(r); };
     })(rec));
+    if (saved === false) {
+      addRecordButton(btns, t('删除'), 'danger del', (function (r) {
+        return function () { deleteAutoRecord(r.id); };
+      })(rec));
+    }
     item.appendChild(btns);
     box.appendChild(item);
   }

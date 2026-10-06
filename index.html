@@ -73,6 +73,7 @@
   .rec-btns button:hover{background:rgba(255,255,255,.17)}
   .rec-btns button.pin{background:rgba(127,215,255,.14);border-color:rgba(127,215,255,.28);color:#a8d8ff}
   .rec-btns button.danger{background:rgba(255,140,120,.12);border-color:rgba(255,140,120,.25);color:#ffb4a2}
+  .rec-btns button.del{margin-left:auto}
   main{flex:1;display:flex;gap:14px;padding:0 18px 18px;min-height:0}
   .board-wrap{position:relative;flex:1 1 auto;min-width:0;min-height:0}
   canvas{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:block;
@@ -2213,9 +2214,6 @@ function idxRenderList(box, list, saved) {
       idxAddButton(btns, t('长期保存'), 'pin', (function (r) {
         return function () { idxPinRecord(r.id); };
       })(rec));
-      idxAddButton(btns, t('删除'), 'danger', (function (r) {
-        return function () { idxDeleteRecord(r.id); };
-      })(rec));
     }
     idxAddButton(btns, t('打谱查看'), '', (function (r) {
       return function () { openRecordInKifu(r); };
@@ -2223,6 +2221,11 @@ function idxRenderList(box, list, saved) {
     idxAddButton(btns, t('导出 SGF'), '', (function (r) {
       return function () { idxDownloadSGF(r); };
     })(rec));
+    if (saved === false) {
+      idxAddButton(btns, t('删除'), 'danger del', (function (r) {
+        return function () { idxDeleteRecord(r.id); };
+      })(rec));
+    }
     item.appendChild(btns);
     box.appendChild(item);
   }
